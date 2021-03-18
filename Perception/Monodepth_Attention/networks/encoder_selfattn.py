@@ -94,7 +94,8 @@ class ResNet_context(nn.Module):
         self.basedir = os.path.dirname(os.path.abspath(__file__))
         self.resnet_model = ResNet(Bottleneck, [3, 4, 23, 3])
         if pretrained:
-            pretrained_weights = torch.load(os.path.join(self.basedir, '../splits/resnet101-imagenet.pth'))
+            #pretrained_weights = torch.load(os.path.join(self.basedir, '../splits/resnet101-imagenet.pth'))
+            pretrained_weights = torch.load(os.path.join(self.basedir, '/media/tomasz/182F089C6B55DF1F/Kitti/vid2depth/trained-model/resnet101-imagenet.pth'), map_location='cpu')
             model_dict = self.resnet_model.state_dict()
             self.resnet_model.load_state_dict({k: v for k, v in pretrained_weights.items() if k in model_dict})
 
