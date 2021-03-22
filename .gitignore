@@ -131,6 +131,6 @@ dmypy.json
 # Pycharm
 .idea
 
-sample_data/images/2011_09_06
-sample_data/depth
-sample_data/pose
+sample_data/images/2011_09_06/
+sample_data/depth/
+sample_data/pose/
