@@ -46,6 +46,8 @@ def parse_args():
     parser.add_argument("--no_cuda",
                         help='if set, disables CUDA',
                         action='store_true')
+    parser.add_argument('--output_path', type=str,
+                        help='output path folder of images')
 
     return parser.parse_args()
 
@@ -94,11 +96,17 @@ def test_simple(args):
     if os.path.isfile(args.image_path):
         # Only testing on a single image
         paths = [args.image_path]
-        output_directory = os.path.dirname(args.image_path)
+        if args.output_path != None:
+            output_directory = args.output_path
+        else:
+            output_directory = os.path.dirname(args.image_path)
     elif os.path.isdir(args.image_path):
         # Searching folder for images
         paths = glob.glob(os.path.join(args.image_path, '*.{}'.format(args.ext)))
-        output_directory = args.image_path
+        if args.output_path != None:
+            output_directory = args.output_path
+        else:
+            output_directory = os.path.dirname(args.image_path)
     else:
         raise Exception("Can not find args.image_path: {}".format(args.image_path))
 
