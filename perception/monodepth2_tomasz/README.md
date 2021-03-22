@@ -1,3 +1,17 @@
+
+
+## ⚙️ Setup for 3D vision team
+
+Run the raw_data_downloader_short.sh file to have a little test set (it is in the sample_data/images folder)
+
+```shell
+bash raw_data_downloader_short.sh
+```
+
+Getting depth from Monodepth2: After having installed dependencies as described below run the following for our test set
+```shell
+python test_simple.py --image_path ../../sample_data/images/2011_09_26/2011_09_26_drive_0001_sync/image_00/data --model_name mono+stereo_640x192 --output_path ../../sample_data/depth/2011_09_26 --ext png
+```
 # Monodepth2
 
 This is the reference PyTorch implementation for training and testing depth estimation models using the method described in
