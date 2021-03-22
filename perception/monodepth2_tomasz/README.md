@@ -1,4 +1,4 @@
-# Monodepth2
+
 
 ## ⚙️ Setup for 3D vision team
 
@@ -12,6 +12,8 @@ Getting depth from Monodepth2: After having installed dependencies as described 
 ```shell
 python test_simple.py --image_path ../../sample_data/images/2011_09_26/2011_09_26_drive_0001_sync/image_00/data --model_name mono+stereo_640x192 --output_path ../../sample_data/depth/2011_09_26 --ext png
 ```
+# Monodepth2
+
 This is the reference PyTorch implementation for training and testing depth estimation models using the method described in
 
 > **Digging into Self-Supervised Monocular Depth Prediction**
