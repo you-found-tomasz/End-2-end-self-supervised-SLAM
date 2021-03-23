@@ -17,12 +17,12 @@ from tensorboardX import SummaryWriter
 
 import json
 
-from utils import *
-from kitti_utils import *
-from layers import *
+from .utils import *
+from .kitti_utils import *
+from .layers import *
 
-import datasets
-import networks
+import .datasets
+import .networks
 from IPython import embed
 
 

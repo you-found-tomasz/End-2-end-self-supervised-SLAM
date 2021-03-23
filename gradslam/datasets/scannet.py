@@ -7,11 +7,11 @@ import cv2
 import imageio
 import numpy as np
 import torch
-from ..geometry.geometryutils import relative_transformation
+from gradslam.geometry.geometryutils import relative_transformation
 from natsort import natsorted
 from torch.utils import data
 
-from . import datautils
+from gradslam.datasets import datautils
 
 __all__ = ["Scannet"]
 

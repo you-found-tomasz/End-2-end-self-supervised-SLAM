@@ -54,8 +54,8 @@ class wrapper(object):
         print("   Successfully Loaded pretrained encoder and decoder   ")
 
     
-    def predict(self, image):
-        """Predict depth map through Monodepth model
+    def predict_depth(self, image):
+        """Predict depth map through Monodepth model using prepped image
 
         Args:
             data ([tensor_image]): [RGB Image without unsqueeze]
@@ -85,4 +85,9 @@ class wrapper(object):
         error["rmse_log"] = rmse_log
         return error
 
-    
+    def prepare_input(self, image):
+        # Check if some scaling etc is needed
+        return image
+
+    def predict(self, image):
+        
