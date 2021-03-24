@@ -5,12 +5,12 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Current File",
+            "name": "Python: examples/pointfusion.py",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
+            "program": "examples/pointfusion.py",
             "console": "integratedTerminal",
-            "args": ["--dataset=tum", "--dataset_path=/media/hamza/DATA/Data/tum"],
+            "args": ["--dataset=tum", "--dataset_path=/media/hamza/DATA/Data/tum", "--odometry=gradicp"],
             "env": {"cwd": "${workspaceFolder}", "PYTHONPATH": "${workspaceFolder}"}
         }
     ]

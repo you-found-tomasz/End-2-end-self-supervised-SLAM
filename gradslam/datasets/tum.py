@@ -196,7 +196,7 @@ class TUM(data.Dataset):
         if isinstance(sequences, str):
             if os.path.isfile(sequences):
                 with open(sequences, "r") as f:
-                    sequences = tuple(f.read().split("\n"))
+                    sequences = tuple(f.read().split("\n"))[:-1]
             else:
                 raise ValueError(
                     "incorrect filename: {} doesn't exist".format(sequences)
