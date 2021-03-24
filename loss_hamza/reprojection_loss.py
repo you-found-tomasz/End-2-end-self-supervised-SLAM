@@ -141,3 +141,12 @@ def get_indexed_projection_TUM(proj_from_index, proj_to_index, rgbs, depths, int
         plt.show()
 
     return images_reprojected
+
+def image2image(rgb_from, rgb_to, depth_from, intrinsic, pose, device):
+    rgb_from = rgb_from.to(device)
+    rgb_to = rgb_to.to(device)
+    depth_from = depth_from.to(device)
+    intrinsic = intrinsic.to(device)
+    pose = pose.to(device)
+    images_reprojected = Cam2Cam.transform(rgb_from, depth_from, intrinsic[:, 0, ::], intrinsic[:, 0, ::], pose, pose, device=device)
+    return images_reprojected

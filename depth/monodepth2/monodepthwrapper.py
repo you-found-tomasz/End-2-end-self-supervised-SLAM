@@ -23,6 +23,8 @@ from depth.monodepth2 import networks
 from depth.monodepth2.evaluate_depth import compute_errors
 from .layers import disp_to_depth
 from .utils import download_model_if_doesnt_exist
+from loss_hamza.reprojection_loss import get_indexed_projection_TUM, image2image
+
 
 
 class MonoDepthv2Wrapper(nn.Module):
@@ -72,7 +74,7 @@ class MonoDepthv2Wrapper(nn.Module):
         scaled_disp, depth = disp_to_depth(disp, 0.1, 100)
         return depth
 
-    def get_error(self, predictions, gt):
+    def get_depth_error(self, predictions, gt):
         mask = torch.where(gt == 0, 0, 1)
         rmse = (gt - predictions) ** 2
         rmse = torch.sqrt(rmse.mean())
@@ -87,10 +89,31 @@ class MonoDepthv2Wrapper(nn.Module):
         loss = {"abs": abs, "squ": sq_rel, "rmse": rmse, "rmse_log": rmse_log}
         return loss
 
-    def get_loss_depth(self, images, gt):
+    def pred_loss_depth(self, input_dict):
+        images = input_dict["rgb"]
+        gt = input_dict["depth"]
         predictions = self(images)
-        error = self.get_error(predictions, gt)
-        return predictions, error
+        error = self.get_depth_error(predictions, gt)
+        return predictions, error["abs"]
+
+    def pred_loss_reproj(self, input_dict):
+        images = input_dict["rgb"]
+        ref = input_dict["rgb_ref"]
+        intrinsics = input_dict["intrinsic"]
+        poses = input_dict["pose"]
+        device = input_dict["device"]
+        predictions = self(images)
+        reprojected_images = image2image(images, ref, predictions, intrinsics, poses, device)
+        error = self.get_reproj_error(reprojected_images, ref)
+        return predictions, error 
+
+    def get_reproj_error(self, pred, ref):
+        abs = torch.abs(pred - ref).mean([-1, -2, -3])
+        return torch.mean(abs)
+
+
+
+    
         
 
 

@@ -8,7 +8,7 @@ from gradslam.datasets.icl import ICL
 from gradslam.datasets.tum import TUM
 from gradslam.slam.pointfusion import PointFusion
 from gradslam.structures.rgbdimages import RGBDImages
-from loss_hamza.reprojection_loss import get_indexed_projection_TUM
+from loss_hamza.reprojection_loss import get_indexed_projection_TUM, image2image
 from depth.monodepth2.monodepthwrapper import MonoDepthv2Wrapper
 import matplotlib.pyplot as plt
 import numpy as np
@@ -69,8 +69,6 @@ if __name__ == "__main__":
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     DepthPredictor = MonoDepthv2Wrapper(args, device)
-
-    # Todo: optim with  the mono depth parameters
     
     optim = Adam(DepthPredictor.parameters(), lr = 1e-4)
 
@@ -78,8 +76,8 @@ if __name__ == "__main__":
     if args.dataset == "icl":
         dataset = ICL(args.dataset_path, seqlen=10, height=192, width=640)
     elif args.dataset == "tum":
-        # dataset = TUM(args.dataset_path, seqlen=10, height=192, width=640, sequences = "/media/hamza/DATA/Data/list.txt")
-        dataset = TUM(args.dataset_path, seqlen=10, height=192, width=640, sequences = ("rgbd_dataset_freiburg1_floor", "rgbd_dataset_freiburg1_desk2"))
+        dataset = TUM(args.dataset_path, seqlen=10, height=192, width=640, sequences = "/media/hamza/DATA/Data/list.txt")
+        # dataset = TUM(args.dataset_path, seqlen=10, height=192, width=640, sequences = ("rgbd_dataset_freiburg1_floor", "rgbd_dataset_freiburg1_desk2"))
 
     loader = DataLoader(dataset=dataset, batch_size=8, shuffle=True)
 
@@ -90,7 +88,6 @@ if __name__ == "__main__":
     counter = {"every": 0, "batch": 0, "detailed": 0}
     for e_idx in range(epochs):
         for batch_idx, (colors, depths, intrinsics, poses, *_) in enumerate(loader):
-
             colors = colors.to(device)
             depths = depths.to(device)
             intrinsics = intrinsics.to(device)
@@ -101,16 +98,25 @@ if __name__ == "__main__":
             pred_depths = []
             for pred_index in range(10):
                 DepthPredictor.zero_grad()
-                rgbs_curr = (colors[:, pred_index, ::] / 255.0).permute(0, 3, 1, 2)
-                depths_curr = depths[:, pred_index, ].permute(0, 3, 1, 2)
-                depth_predictions, loss = DepthPredictor.get_loss_depth(rgbs_curr, depths_curr)
+                input_dict = {"device": device}
+                input_dict["rgb"] = (colors[:, pred_index, ::] / 255.0).permute(0, 3, 1, 2)
+                input_dict["rgb_ref"] = (colors[:, pred_index - 1, ::] / 255.0).permute(0, 3, 1, 2)
+                input_dict["pose"] = torch.matmul(torch.inverse(poses[:, pred_index - 1, ::]), poses[:, pred_index, ::])
+                input_dict["depth"] = depths[:, pred_index, ::].permute(0, 3, 1, 2)
+                input_dict["intrinsic"] = intrinsics
+
+                if pred_index == 0:
+                    depth_predictions, loss = DepthPredictor.pred_loss_depth(input_dict)
+                elif pred_index > 0:
+                    depth_predictions, loss = DepthPredictor.pred_loss_reproj(input_dict)
+                    batch_loss += loss.item() * 0.1
+                    loss.backward()
+                    optim.step()
+                    writer.add_scalar("Depth/Perstep_loss", loss.item(), counter["every"])
+                    counter["every"] +=1
+
                 pred_depths.append(depth_predictions.permute(0, 2, 3, 1).unsqueeze(1))
 
-                batch_loss += loss["abs"].item() * 0.1
-                loss["abs"].backward()
-                optim.step()
-                writer.add_scalar("Depth/Perstep_loss", loss["abs"].item(), counter["every"])
-                counter["every"] +=1
 
             writer.add_scalar("Depth/Batchwise_loss", batch_loss, counter["batch"] )
             losses.append(batch_loss)
@@ -126,7 +132,7 @@ if __name__ == "__main__":
 
             # SLAM
 
-            if batch_idx ==0 or batch_idx == 25:
+            if batch_idx ==0 or batch_idx % 25 == 0:
                 print("Getting pose loss")
                 rgbdimages = RGBDImages(colors, pred_depths, intrinsics, poses, channels_first=False, device=torch.device("cpu"))
                 slam = PointFusion(odom=args.odometry, dsratio=4, device=torch.device("cpu"))
