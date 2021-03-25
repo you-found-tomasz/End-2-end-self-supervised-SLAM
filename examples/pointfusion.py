@@ -70,7 +70,7 @@ if __name__ == "__main__":
 
     DepthPredictor = MonoDepthv2Wrapper(args, device)
     
-    optim = Adam(DepthPredictor.parameters(), lr = 1e-4)
+    optim = Adam(DepthPredictor.parameters(), lr = 1e-6)
 
     # load dataset
     if args.dataset == "icl":
@@ -132,13 +132,22 @@ if __name__ == "__main__":
 
             # SLAM
 
-            if batch_idx ==0 or batch_idx % 25 == 0:
+            if batch_idx ==0 or batch_idx % 10 == 0:
                 print("Getting pose loss")
                 rgbdimages = RGBDImages(colors, pred_depths, intrinsics, poses, channels_first=False, device=torch.device("cpu"))
                 slam = PointFusion(odom=args.odometry, dsratio=4, device=torch.device("cpu"))
                 pointclouds, recovered_poses = slam(rgbdimages)
                 loss_p = pose_loss(poses, recovered_poses, device)
-                writer.add_scalar("Pose/Batchwise_loss", loss_p.mean().item(), counter["detailed"] )
+                writer.add_scalar("Pose/Batchwise_loss_pred", loss_p.mean().item(), counter["detailed"] )
+
+                depths = change_res(depths,(120, 160), interpol="nearest")
+
+                rgbdimages = RGBDImages(colors, depths, intrinsics, poses, channels_first=False, device=torch.device("cpu"))
+                slam = PointFusion(odom=args.odometry, dsratio=4, device=torch.device("cpu"))
+                pointclouds, recovered_poses = slam(rgbdimages)
+                loss_p = pose_loss(poses, recovered_poses, device)
+                writer.add_scalar("Pose/Batchwise_loss_gt", loss_p.mean().item(), counter["detailed"] )
+
                 counter["detailed"] += 1
 
 
