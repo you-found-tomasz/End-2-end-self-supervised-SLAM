@@ -110,7 +110,7 @@ ENV/
 env.bak/
 venv.bak/
 
-# Spyder project settings
+# Spyder project settingsgit 
 .spyderproject
 .spyproject
 
@@ -143,3 +143,9 @@ log/
 # Tutorials data
 ICL/
 runs/
+# Pycharm
+.idea
+
+sample_data/images/2011_09_26/
+sample_data/depth/2011_09_26/
+sample_data/pose/2011_09_26/
