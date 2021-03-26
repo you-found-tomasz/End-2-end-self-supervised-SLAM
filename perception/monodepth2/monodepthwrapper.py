@@ -23,7 +23,7 @@ from . import networks
 from .evaluate_depth import compute_errors
 from .layers import disp_to_depth
 from .utils import download_model_if_doesnt_exist
-from loss_hamza.reprojection_loss import get_indexed_projection_TUM, image2image
+from end2endslam.loss_hamza.reprojection_loss import get_indexed_projection_TUM, image2image
 
 
 

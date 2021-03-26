@@ -4,14 +4,12 @@ import open3d as o3d
 import torch
 from torch.utils.data import DataLoader
 
-import end2endslam
-
 from gradslam.datasets.icl import ICL
 from gradslam.datasets.tum import TUM
 from gradslam.slam.pointfusion import PointFusion
 from gradslam.structures.rgbdimages import RGBDImages
-from .loss_hamza.reprojection_loss import get_indexed_projection_TUM, image2image
-from .depth.monodepth2.monodepthwrapper import MonoDepthv2Wrapper
+from end2endslam.loss_hamza.reprojection_loss import get_indexed_projection_TUM, image2image
+from perception.monodepth2.monodepthwrapper import MonoDepthv2Wrapper
 import matplotlib.pyplot as plt
 import numpy as np
 from torch.optim import Adam

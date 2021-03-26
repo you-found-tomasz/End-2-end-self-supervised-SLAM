@@ -10,8 +10,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+
 from collections import OrderedDict
-from depth.monodepth2.layers import *
+from ..layers import *
 
 
 class DepthDecoder(nn.Module):
