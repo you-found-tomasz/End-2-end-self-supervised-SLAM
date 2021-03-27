@@ -18,6 +18,8 @@ from PIL import Image as pil_image
 import numpy as np
 from torch.optim import Adam
 from torch.utils.tensorboard import SummaryWriter
+import imageio
+import os
 
 """r Example run commands:
 
@@ -163,15 +165,12 @@ if __name__ == "__main__":
             losses.append(batch_loss)
             counter["batch"] +=1
 
-            # for visualization purposes
-            if args.visualize:
-                vis_pred_depths = pred_depths[0].detach().cpu().numpy()
-
             pred_depths = torch.cat(pred_depths, dim= 1)
             # projection = get_indexed_projection_TUM(proj_from_index = 1, proj_to_index=0, rgbs = colors, depths = depths, intrinsic = intrinsics, poses = poses, device = device)
 
             colors = change_res(colors, (120, 160), interpol="bicubic")
             pred_depths = change_res(pred_depths,(120, 160), interpol="nearest")
+
             intrinsics[:, :, 0, :] = intrinsics[:, :, 0, :] * 160 / 640
             intrinsics[:, :, 1, :] = intrinsics[:, :, 1, :] * 120 / 192
 
@@ -186,18 +185,24 @@ if __name__ == "__main__":
                 pointclouds, recovered_poses = slam(rgbdimages)
                 loss_p = pose_loss(poses, recovered_poses, device)
                 writer.add_scalar("Pose/Batchwise_loss_pred", loss_p.mean().item(), counter["detailed"] )
+
+                # Visualize (images stored in vis directory)
                 if args.visualize:
+                    if not os.path.exists("vis"):
+                        os.makedirs("vis")
                     # SLAM Visualization
                     o3d.visualization.draw_geometries([pointclouds.open3d(0)])
+                    # Color Visualization
+                    vis_color = colors[0, 0, :, :, :].detach().cpu().numpy()
+                    imageio.imwrite("vis/test_{}_{}_color.png".format(args.dataset, batch_idx), vis_color)
                     # Depth Visualization
-                    vis_pred_depth = vis_pred_depths[0, 0, :, :, 0]
+                    vis_pred_depth = pred_depths[0, 0, :, :, :].detach().cpu().numpy()
                     vmax = np.percentile(vis_pred_depth, 95)
                     vmin = vis_pred_depth.min()
                     normalizer = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
                     mapper = cm.ScalarMappable(norm=normalizer, cmap='magma')
-                    pred_depth_np = (mapper.to_rgba(vis_pred_depth)[:, :, :3] * 255).astype(np.uint8)
-                    pred_depth_im = pil_image.fromarray(pred_depth_np)
-                    pred_depth_im.show()
+                    pred_depth_np = (mapper.to_rgba(vis_pred_depth[:, :, 0])[:, :, :3] * 255).astype(np.uint8)
+                    imageio.imwrite("vis/test_{}_{}_depth.png".format(args.dataset, batch_idx), pred_depth_np)
 
                 # With ground truth depth
                 if args.dataset == "tum":
@@ -212,8 +217,3 @@ if __name__ == "__main__":
 
 
             print("loss: {}".format(sum(losses[-5:])/ 5))
-
-
-    # visualization
-    # o3d.visualization.draw_geometries([pointclouds.open3d(0)])
-    # o3d.visualization.draw_geometries([pointclouds.open3d(1)])
