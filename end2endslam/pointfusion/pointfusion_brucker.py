@@ -19,6 +19,19 @@ import numpy as np
 from torch.optim import Adam
 from torch.utils.tensorboard import SummaryWriter
 
+"""r Example run commands:
+
+KITTI 
+(small test dataset provided at https://drive.google.com/drive/folders/1i1ydf1YOVLCZmOkByr8vfwEbOP9hJDYR?usp=sharing )
+pointfusion_brucker.py --dataset kitti --dataset_path "/home/matthias/data/kitti/data_odometry/dataset"
+--odometry gt --sequences "/home/matthias/data/kitti/data_odometry/dataset/sequences.txt" --visualize True
+
+TUM (leave TUM folder structure unchanged)
+pointfusion_brucker.py --dataset kitti --dataset_path "/home/matthias/data/kitti/data_odometry/dataset"
+--odometry gt --visualize True
+
+"""
+
 parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
 parser.add_argument(
     "--dataset",
@@ -49,7 +62,8 @@ parser.add_argument(
     "--sequences",
     type=str,
     default=None,
-    help="Path to .txt file containing sequences"
+    help="Path to .txt file containing sequences. \n"
+    " If it doesn't work for TUM, leave option out, it then takes all sequences in dataset_path"
 )
 parser.add_argument(
     "--visualize",
@@ -92,10 +106,9 @@ if __name__ == "__main__":
     if args.dataset == "icl":
         dataset = ICL(args.dataset_path, seqlen=10, height=192, width=640)
     elif args.dataset == "tum":
-        dataset = TUM(args.dataset_path, seqlen=10, height=192, width=640, sequences = "/media/hamza/DATA/Data/list.txt")
+        dataset = TUM(args.dataset_path, seqlen=10, height=192, width=640, sequences=args.sequences)
     elif args.dataset == "kitti":
         dataset = KITTI(args.dataset_path, seqlen=10, height=192, width=640, sequences=args.sequences)
-        # dataset = TUM(args.dataset_path, seqlen=10, height=192, width=640, sequences = ("rgbd_dataset_freiburg1_floor", "rgbd_dataset_freiburg1_desk2"))
 
     loader = DataLoader(dataset=dataset, batch_size=8, shuffle=True)
 

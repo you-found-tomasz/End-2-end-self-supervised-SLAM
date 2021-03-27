@@ -15,98 +15,12 @@ __all__ = ["KITTI"]
 
 
 class KITTI(data.Dataset):
-    r"""A torch Dataset for loading in `the KITTI odometry dataset.
-    Will fetch sequences of rgb images, depth maps, intrinsics matrix, poses, frame to frame relative transformations
-    (with first frame's pose as the reference transformation), names of frames. Uses extracted `.tgz` sequences
-    downloaded from `here <https://vision.in.tum.de/data/datasets/rgbd-dataset/download>`__.
-    Expects similar to the following folder structure for the TUM dataset:
-
-    .. code-block::
-
-
-        | ├── TUM
-        | │   ├── rgbd_dataset_freiburg1_rpy
-        | │   │   ├── depth/
-        | │   │   ├── rgb/
-        | │   │   ├── accelerometer.txt
-        | │   │   ├── depth.txt
-        | │   │   ├── groundtruth.txt
-        | │   │   └── rgb.txt
-        | │   ├── rgbd_dataset_freiburg1_xyz
-        | │   │   ├── depth/
-        | │   │   ├── rgb/
-        | │   │   ├── accelerometer.txt
-        | │   │   ├── depth.txt
-        | │   │   ├── groundtruth.txt
-        | │   │   └── rgb.txt
-        | │   ├── ...
-        |
-        |
-
-    Example of sequence creation from frames with `seqlen=4`, `dilation=1`, `stride=3`, and `start=2`:
-
-    .. code-block::
-
-
-                                            sequence0
-                        ┎───────────────┲───────────────┲───────────────┒
-                        |               |               |               |
-        frame0  frame1  frame2  frame3  frame4  frame5  frame6  frame7  frame8  frame9  frame10  frame11 ...
-                                                |               |               |                |
-                                                └───────────────┵───────────────┵────────────────┚
-                                                                    sequence1
-
-    Args:
-        basedir (str): Path to the base directory containing extracted TUM sequences in separate directories.
-            Each sequence subdirectory is assumed to contain `depth/`, `rgb/`, `accelerometer.txt`, `depth.txt` and
-            `groundtruth.txt` and `rgb.txt`, E.g.:
-
-            .. code-block::
-
-
-                ├── rgbd_dataset_freiburgX_NAME
-                │   ├── depth/
-                │   ├── rgb/
-                │   ├── accelerometer.txt
-                │   ├── depth.txt
-                │   ├── groundtruth.txt
-                │   └── rgb.txt
-
-        sequences (str or tuple of str or None): Sequences to use from those available in `basedir`.
-            Can be path to a `.txt` file where each line is a sequence name (e.g. `rgbd_dataset_freiburg1_rpy`),
-            a tuple of sequence names, or None to use all sequences. Default: None
-        seqlen (int): Number of frames to use for each sequence of frames. Default: 4
-        dilation (int or None): Number of (original trajectory's) frames to skip between two consecutive
-            frames in the extracted sequence. See above example if unsure.
-            If None, will set `dilation = 0`. Default: None
-        stride (int or None): Number of frames between the first frames of two consecutive extracted sequences.
-            See above example if unsure. If None, will set `stride = seqlen * (dilation + 1)`
-            (non-overlapping sequences). Default: None
-        start (int or None): Index of the rgb frame from which to start extracting sequences for every sequence.
-            If None, will start from the first frame. Default: None
-        end (int): Index of the rgb frame at which to stop extracting sequences for every sequence.
-            If None, will continue extracting frames until the end of the sequence. Default: None
-        height (int): Spatial height to resize frames to. Default: 480
-        width (int): Spatial width to resize frames to. Default: 640
-        channels_first (bool): If True, will use channels first representation :math:`(B, L, C, H, W)` for images
-            `(batchsize, sequencelength, channels, height, width)`. If False, will use channels last representation
-            :math:`(B, L, H, W, C)`. Default: False
-        normalize_color (bool): Normalize color to range :math:`[0 1]` or leave it at range :math:`[0 255]`.
-            Default: False
-        return_depth (bool): Determines whether to return depths. Default: True
-        return_intrinsics (bool): Determines whether to return intrinsics. Default: True
-        return_pose (bool): Determines whether to return poses. Default: True
-        return_transform (bool): Determines whether to return transforms w.r.t. initial pose being transformed to be
-            identity. Default: True
-        return_names (bool): Determines whether to return sequence names. Default: True
-        return_timestamps (bool): Determines whether to return rgb, depth and pose timestamps. Default: True
-
-
+    r"""
     Examples::
 
-        >>> dataset = TUM(
-            basedir="TUM-data/",
-            sequences=("rgbd_dataset_freiburg1_rpy", "rgbd_dataset_freiburg1_xyz"))
+        >>> dataset = KITTI(
+            basedir="KITTI-data/",
+            sequences="sequences.txt"
         >>> loader = data.DataLoader(dataset=dataset, batch_size=4)
         >>> colors, depths, intrinsics, poses, transforms, names = next(iter(loader))
 
@@ -121,8 +35,8 @@ class KITTI(data.Dataset):
         stride: Optional[int] = None,
         start: Optional[int] = None,
         end: Optional[int] = None,
-        height: int = 480,
-        width: int = 640,
+        height: int = 512,
+        width: int = 1392,
         channels_first: bool = False,
         normalize_color: bool = False,
         *,
@@ -135,8 +49,8 @@ class KITTI(data.Dataset):
         basedir = os.path.normpath(basedir)
         self.height = height
         self.width = width
-        self.height_downsample_ratio = float(height) / 480
-        self.width_downsample_ratio = float(width) / 640
+        self.height_downsample_ratio = float(height) / 512
+        self.width_downsample_ratio = float(width) / 1392
         self.channels_first = channels_first
         self.normalize_color = normalize_color
         self.return_intrinsics = return_intrinsics
@@ -197,10 +111,7 @@ class KITTI(data.Dataset):
                 "Sequences must be .txt file with sequences"
             )
 
-        # check if TUM folder structure correct: If sequences is not None, should contain all sequence paths.
-        # Should also contain atleast one sequence path.
         sequence_paths = []
-
         # check folder structure for sequence:
         for item in os.listdir(os.path.join(basedir, "sequences")):
             if os.path.isdir(os.path.join(basedir, "sequences", item)):
@@ -241,7 +152,7 @@ class KITTI(data.Dataset):
         self.colorfiles = colorfiles
         self.poses = poses
 
-        # Camera intrinsics matrix for KITTI dataset #TODO
+        # Camera intrinsics matrix for KITTI dataset #TODO: not only cam3
         K_cam3 = odometry(basedir, seq_name).calib.K_cam3
         intrinsics_np = np.zeros((4, 4))
         intrinsics_np[:3, :3] = K_cam3
