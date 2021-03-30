@@ -28,12 +28,12 @@ from end2endslam.loss_hamza.reprojection_loss import get_indexed_projection_TUM,
 
 
 class MonoDepthv2Wrapper(nn.Module):
-    def __init__(self, args, device):
+    def __init__(self, device):
         super(MonoDepthv2Wrapper, self).__init__()
         self.device = device
-        args.model_name = "mono+stereo_640x192"
-        download_model_if_doesnt_exist(args.model_name)
-        model_path = os.path.join("depth/monodepth2/models", args.model_name)
+        model_name = "mono+stereo_640x192"
+        download_model_if_doesnt_exist(model_name)
+        model_path = os.path.join("depth/monodepth2/models", model_name)
         print("-> Loading model from ", model_path)
         encoder_path = os.path.join(model_path, "encoder.pth")
         depth_decoder_path = os.path.join(model_path, "depth.pth")
@@ -71,6 +71,9 @@ class MonoDepthv2Wrapper(nn.Module):
         outputs = self.depth_decoder(features)
 
         disp = outputs[("disp", 0)]
+
+        #convert disparity map to absolute depths. Here the conversion
+        #is hardcoded
         scaled_disp, depth = disp_to_depth(disp, 0.1, 100)
         return depth
 

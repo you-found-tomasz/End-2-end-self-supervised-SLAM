@@ -68,7 +68,7 @@ if __name__ == "__main__":
     # select device
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-    DepthPredictor = MonoDepthv2Wrapper(args, device)
+    DepthPredictor = MonoDepthv2Wrapper(device)
     
     optim = Adam(DepthPredictor.parameters(), lr = 1e-6)
 
