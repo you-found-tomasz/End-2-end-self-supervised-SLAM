@@ -1,6 +1,48 @@
 # End-2-end-self-supervised-SLAM
 Project for ETH 3D vision course
 
+# Cluster
+
+login to cluster
+```shell
+ssh zaluskat@login.leonhard.ethz.ch
+```
+load module to have right compiler and python version
+```shell
+module load gcc/6.3.0 python_gpu/3.8.5
+```
+clone repository
+```shell
+https://github.com/aquamin9/End-2-end-self-supervised-SLAM.git
+```
+create virtual environment
+```shell
+python -m venv --system-site-packages 3dvision
+```
+```shell
+source 3dvision/bin/activate
+```
+Install gradslam by navigating to "gradslam/" and executing 
+```shell
+"pip install ."
+```
+Execute "pip install -e ." in the main folder
+
+Run on CPU (with the -Is option you see interectively, good to check whether it works)
+```shell
+bsub -R "rusage[mem=8192]" -Is "python pointfusion_scsfm_brucker.py --dataset tum --dataset_path "../../sample_data/dataset_TUM/" --odometry icp --loss depth_consistency"
+```
+
+Run on GPU
+```shell
+bsub -R "rusage[mem=8096, ngpus_excl_p=1]" "python pointfusion_scsfm_brucker.py --dataset tum --dataset_path "../../sample_data/dataset_TUM/" --odometry icp --loss depth_consistency"
+```
+
+Good tutorials for further info:
+https://scicomp.ethz.ch/wiki/Workshops
+
+
+
 # Downloaders
 
 TUM:
