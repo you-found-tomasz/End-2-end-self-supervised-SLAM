@@ -12,7 +12,7 @@ import os
 import numpy as np
 import matplotlib as mpl
 import matplotlib.cm as cm
-from .models import DispResNet
+from perception.SC_SfMLearner_Release.models import DispResNet
 import torch
 from gradslam.structures.rgbdimages import RGBDImages
 import imageio
