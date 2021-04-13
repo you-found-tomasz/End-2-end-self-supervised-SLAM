@@ -31,12 +31,12 @@ Execute in the main folder
 "pip install -e ." 
 ```
 
-Run on CPU (with the -Is option you see interectively, good to check whether it works)
+Run on CPU, need to navigate to the pointfusion folder (with the -Is option you see interectively, good to check whether it works)
 ```shell
 bsub -R "rusage[mem=8192]" -Is "python pointfusion_scsfm_brucker.py --dataset tum --dataset_path "../../sample_data/dataset_TUM/" --odometry icp --loss depth_consistency"
 ```
 
-Run on GPU
+Run on GPU, need to navigate to the pointfusion folder
 ```shell
 bsub -R "rusage[mem=8096, ngpus_excl_p=1]" "python pointfusion_scsfm_brucker.py --dataset tum --dataset_path "../../sample_data/dataset_TUM/" --odometry icp --loss depth_consistency"
 ```
