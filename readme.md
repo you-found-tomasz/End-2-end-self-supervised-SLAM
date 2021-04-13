@@ -13,7 +13,7 @@ module load gcc/6.3.0 python_gpu/3.8.5
 ```
 clone repository
 ```shell
-https://github.com/aquamin9/End-2-end-self-supervised-SLAM.git
+git clone https://github.com/aquamin9/End-2-end-self-supervised-SLAM.git
 ```
 create virtual environment
 ```shell
@@ -26,7 +26,10 @@ Install gradslam by navigating to "gradslam/" and executing
 ```shell
 "pip install ."
 ```
-Execute "pip install -e ." in the main folder
+Execute in the main folder 
+```shell
+"pip install -e ." 
+```
 
 Run on CPU (with the -Is option you see interectively, good to check whether it works)
 ```shell
