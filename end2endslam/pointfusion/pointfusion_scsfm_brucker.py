@@ -6,7 +6,8 @@ from torch.utils.data import DataLoader
 from gradslam.datasets.tum import TUM
 from gradslam.slam.pointfusion import PointFusion
 from gradslam.structures.pointclouds import Pointclouds
-from perception.SC_SfMLearner_Release.scsfmwrapper import SCSfmWrapper
+#from perception.SC_SfMLearner_Release.scsfmwrapper import SCSfmWrapper
+from scsfmwrapper import SCSfmWrapper
 from torch.optim import Adam
 from torch.utils.tensorboard import SummaryWriter
 
