@@ -151,4 +151,4 @@ runs/
 # Pycharm
 .idea
 
-sample_data/*.jpg
+sample_data/*.png
