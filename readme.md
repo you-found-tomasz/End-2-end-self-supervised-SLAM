@@ -4,10 +4,15 @@ Project for ETH 3D vision course
 # Downloaders
 
 TUM:
-download TUM, to add download file update raw_data_downloader_TUM.sh
+bash script for downloading TUM (to add more download files update the raw_data_downloader_TUM.sh file)
 ```shell
 bash sample_data/dataset_TUM/raw_data_downloader_TUM.sh 
 ```
+Running pointfusion file with the correct relative string to the data
+```shell
+python pointfusion_scsfm_brucker.py --dataset tum --dataset_path "../../sample_data/dataset_TUM/" --odometry icp --loss "depth_consistency
+```
+
 NYU:
 downloader doesnt work, need download by hand:
 https://onedrive.live.com/?authkey=%21AKVvEAT14TgiFEE&cid=36712431A95E7A25&id=36712431A95E7A25%212551&parId=36712431A95E7A25%21472&action=locate
