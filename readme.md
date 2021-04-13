@@ -3,7 +3,7 @@ Project for ETH 3D vision course
 
 # Cluster
 
-login to cluster
+login to cluster (of course exchange zaluskat for your eth login, use your password for mail)
 ```shell
 ssh zaluskat@login.leonhard.ethz.ch
 ```
