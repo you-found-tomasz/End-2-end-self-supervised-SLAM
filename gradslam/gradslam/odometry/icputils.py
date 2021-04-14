@@ -1,6 +1,6 @@
 from typing import Optional, Union
 
-from chamferdist.chamfer import knn_points
+from pytorch3d.ops.knn import knn_gather, knn_points
 import torch
 
 from ..geometry.geometryutils import transform_pointcloud
