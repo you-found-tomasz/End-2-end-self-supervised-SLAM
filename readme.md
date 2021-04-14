@@ -31,6 +31,12 @@ Execute in the main folder
 "pip install -e ." 
 ```
 
+TUM:
+bash script for downloading TUM (to add more download files update the raw_data_downloader_TUM.sh file)
+```shell
+bash sample_data/dataset_TUM/raw_data_downloader_TUM.sh 
+```
+
 Run on CPU, need to navigate to the pointfusion folder (with the -Is option you see interectively, good to check whether it works)
 
 ```shell
