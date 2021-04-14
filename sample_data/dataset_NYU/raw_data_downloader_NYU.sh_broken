@@ -1,0 +1,10 @@
+#!/bin/bash
+
+
+echo "Downloading rectified_nyu:"
+wget 'https://1drv.ms/u/s!AnJXpxl3OBbHg2y-yxnc4wHmBTzm?e=Inzjsc'
+unzip -o rectified_nyu.zip
+rm rectified_nyu.zip
+
+
+#https://github.com/JiawangBian/Unsupervised-Indoor-Depth downloading the rectified_nyu (for training)
