@@ -32,9 +32,9 @@ Execute in the main folder
 ```
 
 TUM:
-bash script for downloading TUM (to add more download files update the raw_data_downloader_TUM.sh file)
+bash script for downloading TUM execute in sample_data/data_TUM folder (to add more download files update the raw_data_downloader_TUM.sh file)
 ```shell
-bash sample_data/dataset_TUM/raw_data_downloader_TUM.sh 
+bash raw_data_downloader_TUM.sh 
 ```
 
 Run on CPU, need to navigate to the pointfusion folder (with the -Is option you see interectively, good to check whether it works)
@@ -60,9 +60,9 @@ https://scicomp.ethz.ch/wiki/Workshops
 # Downloaders
 
 TUM:
-bash script for downloading TUM (to add more download files update the raw_data_downloader_TUM.sh file)
+bash script for downloading TUM, execute in the sample_data/data_TUM folder folder (to add more download files update the raw_data_downloader_TUM.sh file)
 ```shell
-bash sample_data/dataset_TUM/raw_data_downloader_TUM.sh 
+bash raw_data_downloader_TUM.sh 
 ```
 Running pointfusion file with the correct relative string to the data
 ```shell
