@@ -32,8 +32,13 @@ Execute in the main folder
 ```
 
 Run on CPU, need to navigate to the pointfusion folder (with the -Is option you see interectively, good to check whether it works)
+
 ```shell
+running pointfusion from the pointfusion folder:
 bsub -R "rusage[mem=8192]" -Is "python pointfusion_scsfm_brucker.py --dataset tum --dataset_path "../../sample_data/dataset_TUM/" --odometry icp --loss depth_consistency"
+
+running pointfusion from the main folder:
+bsub -R "rusage[mem=8192]" -Is "python pointfusion_scsfm_brucker.py --dataset tum --dataset_path "/sample_data/dataset_TUM/" --odometry icp --loss depth_consistency"
 ```
 
 Run on GPU, need to navigate to the pointfusion folder
