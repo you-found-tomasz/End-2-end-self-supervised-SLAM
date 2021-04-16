@@ -1,6 +1,33 @@
 # End-2-end-self-supervised-SLAM
 Project for ETH 3D vision course
 
+# Common Cluster
+
+login to cluster (of course exchange zaluskat for your eth login, use your password for mail)
+```shell
+ssh zaluskat@login.leonhard.ethz.ch
+```
+
+load module to have right compiler and python version
+```shell
+module load gcc/6.3.0 python_gpu/3.8.5
+```
+
+```shell
+ cd /cluster/project/infk/courses/3d_vision_21/group_25/End-2-end-self-supervised-SLAM/
+```
+
+```shell
+source 3dvision/bin/activate
+```
+
+inside pointfusion folder
+
+```shell
+bsub -Is -R "rusage[mem=8096, ngpus_excl_p=1]" "python pointfusion_scsfm_brucker2.py --dataset tum --dataset_path "../../sample_data/dataset_TUM/" --odometry icp --loss depth_consistency"
+```
+
+
 # Cluster
 
 login to cluster (of course exchange zaluskat for your eth login, use your password for mail)
@@ -32,9 +59,9 @@ Execute in the main folder
 ```
 
 TUM:
-bash script for downloading TUM (to add more download files update the raw_data_downloader_TUM.sh file)
+bash script for downloading TUM execute in sample_data/data_TUM folder (to add more download files update the raw_data_downloader_TUM.sh file)
 ```shell
-bash sample_data/dataset_TUM/raw_data_downloader_TUM.sh 
+bash raw_data_downloader_TUM.sh 
 ```
 
 Run on CPU, need to navigate to the pointfusion folder (with the -Is option you see interectively, good to check whether it works)
@@ -49,7 +76,7 @@ bsub -R "rusage[mem=8192]" -Is "python pointfusion_scsfm_brucker.py --dataset tu
 
 Run on GPU, need to navigate to the pointfusion folder
 ```shell
-bsub -R "rusage[mem=8096, ngpus_excl_p=1]" "python pointfusion_scsfm_brucker.py --dataset tum --dataset_path "../../sample_data/dataset_TUM/" --odometry icp --loss depth_consistency"
+bsub -Is -R "rusage[mem=8096, ngpus_excl_p=1]" "python pointfusion_scsfm_brucker.py --dataset tum --dataset_path "../../sample_data/dataset_TUM/" --odometry icp --loss depth_consistency"
 ```
 
 Good tutorials for further info:
@@ -60,9 +87,9 @@ https://scicomp.ethz.ch/wiki/Workshops
 # Downloaders
 
 TUM:
-bash script for downloading TUM (to add more download files update the raw_data_downloader_TUM.sh file)
+bash script for downloading TUM, execute in the sample_data/data_TUM folder folder (to add more download files update the raw_data_downloader_TUM.sh file)
 ```shell
-bash sample_data/dataset_TUM/raw_data_downloader_TUM.sh 
+bash raw_data_downloader_TUM.sh 
 ```
 Running pointfusion file with the correct relative string to the data
 ```shell

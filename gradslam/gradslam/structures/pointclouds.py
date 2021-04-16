@@ -1,6 +1,6 @@
 from typing import List, Optional, Union
 
-import open3d as o3d
+#import open3d as o3d
 import plotly.graph_objects as go
 import torch
 
