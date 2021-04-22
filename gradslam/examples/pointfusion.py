@@ -1,6 +1,6 @@
 from argparse import ArgumentParser, RawTextHelpFormatter
 
-import open3d as o3d
+#import open3d as o3d
 import torch
 from torch.utils.data import DataLoader
 
