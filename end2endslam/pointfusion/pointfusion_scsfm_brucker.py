@@ -33,7 +33,7 @@ parser.add_argument(
     "--dataset",
     type=str,
     default= "tum",
-    required=True,
+    required=False,
     choices=["tum"],
     help="Dataset to use. Supported options:\n"
     " tum = Iterative Closest Point\n",
@@ -41,8 +41,8 @@ parser.add_argument(
 parser.add_argument(
     "--dataset_path",
     type=str,
-    default= "D:\OneDrive\Dokumente\ETH\2.Mastersemester\3DV_Project\3DV_04_Datasets\00_TUM\rgbd_dataset_freiburg1_xyz",
-    required=True,
+    default= "D:\OneDrive\Bilder\Datasets\TUM",
+    required=False,
     help="Path to the dataset directory",
 )
 parser.add_argument(

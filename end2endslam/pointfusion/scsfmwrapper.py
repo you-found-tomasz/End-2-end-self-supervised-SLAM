@@ -17,7 +17,7 @@ from models import DispResNet
 import torch
 from gradslam.structures.rgbdimages import RGBDImages
 import imageio
-#import open3d as o3d
+import open3d as o3d
 from kornia.geometry.linalg import inverse_transformation
 from gradslam.geometry.geometryutils import create_meshgrid 
 #from end2endslam.loss_hamza.reprojection_loss import image2image
