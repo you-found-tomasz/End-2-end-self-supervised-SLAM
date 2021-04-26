@@ -3,14 +3,17 @@ import cv2
 import numpy as np 
 import torch
 import imageio
+from typing import Optional, Union
 
 from torch.utils import data
 
-from gradslam.gradslam.geometry.geometryutils import relative_transformation
-from gradslam.gradslam.datasets import datautils
+from gradslam.geometry.geometryutils import relative_transformation
+from gradslam.datasets import datautils
 
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+
+__all__ = ["NYU"]
 
 class NYU(data.Dataset):
 
@@ -27,12 +30,14 @@ class NYU(data.Dataset):
         height: int = 480,
         width: int = 640,
         channels_first: bool = False,
-        normalize_color: bool = False,        
+        normalize_color: bool = False,   
+        return_depth: bool = True, 
+        return_intrinsics: bool = True,  
     ):
         super(NYU, self).__init__()
 
         #Assignement 1
-        basedir = os.path.normpath(os.path.join(basedir,version)
+        basedir = os.path.join(basedir,version)
 
         self.height = height
         self.width = width
@@ -40,6 +45,8 @@ class NYU(data.Dataset):
         self.width_downsample_ratio = float(width) / 320
         self.channels_first = channels_first
         self.normalize_color = normalize_color
+        self.return_depth = return_depth
+        self.return_intrinsics = return_intrinsics
         
         ### SEQLEN, STRIDE, DILATION ###
         # Check if seqlen, stride and dilation are 'None' or int
@@ -115,7 +122,7 @@ class NYU(data.Dataset):
 
         sequence_paths = []
         # check folder structure for sequence:
-        for item in os.listdir(os.path.join(basedir): # iterate over all items in basedir
+        for item in os.listdir(basedir): # iterate over all items in basedir
             if os.path.isdir(os.path.join(basedir, item)): #is the item a folder?
                 if sequences is None or (sequences is not None and item in sequences):
                     sequence_paths.append(os.path.join(basedir, item)) #add folder path of sequences
@@ -138,11 +145,11 @@ class NYU(data.Dataset):
         idx = np.arange(seqlen) * (dilation + 1)
         for sequence_path in sequence_paths: #go through all sequences
             seq_colorfiles, seq_depthfiles = [], []
-            for sequence_item in os.path.listdir(sequence_path) #go through all files in the folder
-                if os.path.isfile(sequence_item) and not sequence_item.endswith(".txt")
-                    seq_colorfiles.append(sequence_item) #add to colorfile list if it is not a directory
-            for sequence_item in os.path.listdir(os.path.join(sequence_path, depth) 
-                seq_depthfiles.append(sequence_item) # add to depthfile list
+            for sequence_item in os.listdir(sequence_path): #go through all files in the folder
+                if sequence_item.endswith(".jpg"):
+                    seq_colorfiles.append(os.path.join(sequence_path,sequence_item)) #add to colorfile list if it is not a directory
+            for sequence_item in os.listdir(os.path.join(sequence_path, "depth")): 
+                seq_depthfiles.append(os.path.join(sequence_path,"depth",sequence_item)) # add to depthfile list
             
             # take start and stride into account for writing to colorfile and depthfile list
             num_frames = len(seq_colorfiles)
@@ -161,11 +168,14 @@ class NYU(data.Dataset):
 
         #Camera intrinsics
         intrinsics = torch.tensor(
-            [[259.42895, 0, 162.79122], [0, 277.05046, 135.32596], [0, 0, 1]]
+            [[259.42895, 0, 162.79122,0], [0, 277.05046, 135.32596,0], [0, 0, 1,0], [0,0,0,1]]
         ).float()
         self.intrinsics = datautils.scale_intrinsics(
             intrinsics, self.height_downsample_ratio, self.width_downsample_ratio
         ).unsqueeze(0)
+
+        # Scaling factor for depth images
+        self.scaling_factor = 5000.0
 
     def __len__(self):
         r"""Returns the length of the dataset. """
