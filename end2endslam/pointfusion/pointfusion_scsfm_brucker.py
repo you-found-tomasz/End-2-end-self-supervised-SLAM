@@ -99,7 +99,7 @@ if __name__ == "__main__":
     # load dataset
     if args.dataset == "tum":
         # doesn't work with 120 / 160, probably has something to do with upsampling / downsampling in ResNet
-        dataset = TUM(args.dataset_path, seqlen=args.seq_length, height=480, width=640, sequences=("rgbd_dataset_freiburg1_360", "rgbd_dataset_freiburg1_desk"))
+        dataset = TUM(args.dataset_path, seqlen=args.seq_length, height=480, width=640, sequences=None)
 
     # get data
     loader = DataLoader(dataset=dataset, batch_size=args.batch_size, shuffle=True)
