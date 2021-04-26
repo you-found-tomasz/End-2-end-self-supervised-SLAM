@@ -26,10 +26,13 @@ pointfusion_scsfm_brucker.py --dataset tum --dataset_path "/home/matthias/data/t
 
 """
 
+
+
 parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
 parser.add_argument(
     "--dataset",
     type=str,
+    default= "tum",
     required=True,
     choices=["tum"],
     help="Dataset to use. Supported options:\n"
@@ -38,6 +41,7 @@ parser.add_argument(
 parser.add_argument(
     "--dataset_path",
     type=str,
+    default= "D:\OneDrive\Dokumente\ETH\2.Mastersemester\3DV_Project\3DV_04_Datasets\00_TUM\rgbd_dataset_freiburg1_xyz",
     required=True,
     help="Path to the dataset directory",
 )
