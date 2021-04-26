@@ -32,7 +32,8 @@ class NYU(data.Dataset):
         super(NYU, self).__init__()
 
         #Assignement 1
-        basedir = os.path.normpath(basedir)
+        basedir = os.path.normpath(os.path.join(basedir,version)
+
         self.height = height
         self.width = width
         self.height_downsample_ratio = float(height) / 253
