@@ -1,91 +1,84 @@
 import os
-from typing import Optional, Union
-
 import cv2
-import imageio
-import numpy as np
+import numpy as np 
 import torch
-from end2endslam.dataloader.dataloader_utils.pykitti_odometry import odometry
-from gradslam.geometry.geometryutils import relative_transformation
+import imageio
+
 from torch.utils import data
 
-from gradslam.datasets import datautils
+from gradslam.gradslam.geometry.geometryutils import relative_transformation
+from gradslam.gradslam.datasets import datautils
 
-__all__ = ["KITTI"]
+from tqdm import tqdm
+import matplotlib.pyplot as plt
 
-
-class KITTI(data.Dataset):
-    r"""
-    Examples::
-
-        >>> dataset = KITTI(
-            basedir="KITTI-data/",
-            sequences="sequences.txt"
-        >>> loader = data.DataLoader(dataset=dataset, batch_size=4)
-        >>> colors, depths, intrinsics, poses, transforms, names = next(iter(loader))
-
-    """
+class NYU(data.Dataset):
 
     def __init__(
         self,
         basedir: str,
+        version: str = "rectified",
         sequences: Union[tuple, str, None] = None,
         seqlen: int = 4,
         dilation: Optional[int] = None,
         stride: Optional[int] = None,
         start: Optional[int] = None,
         end: Optional[int] = None,
-        height: int = 512,
-        width: int = 1392,
+        height: int = 480,
+        width: int = 640,
         channels_first: bool = False,
-        normalize_color: bool = False,
-        *,
-        return_dummy_depth: bool = True,
-        return_intrinsics: bool = True,
-        return_pose: bool = True,
+        normalize_color: bool = False,        
     ):
-        super(KITTI, self).__init__()
+        super(NYU, self).__init__()
 
+        #Assignement 1
         basedir = os.path.normpath(basedir)
         self.height = height
         self.width = width
-        self.height_downsample_ratio = float(height) / 512
-        self.width_downsample_ratio = float(width) / 1392
+        self.height_downsample_ratio = float(height) / 253
+        self.width_downsample_ratio = float(width) / 320
         self.channels_first = channels_first
         self.normalize_color = normalize_color
-        self.return_intrinsics = return_intrinsics
-        self.return_pose = return_pose
-        self.return_dummy_depth = return_dummy_depth
-
+        
+        ### SEQLEN, STRIDE, DILATION ###
+        # Check if seqlen, stride and dilation are 'None' or int
         if not isinstance(seqlen, int):
             raise TypeError('"seqlen" must be int. Got {0}.'.format(type(seqlen)))
         if not (isinstance(stride, int) or stride is None):
             raise TypeError(
-                '"stride" must be int or None. Got {0}.'.format(type(stride))
-            )
+                '"stride" must be int or None. Got {0}.'.format(type(stride)))
         if not (isinstance(dilation, int) or dilation is None):
             raise TypeError(
-                "dilation must be int or None. Got {0}.".format(type(dilation))
-            )
+                "dilation must be int or None. Got {0}.".format(type(dilation)))
+
+        #Assignement 2
         dilation = dilation if dilation is not None else 0
         stride = stride if stride is not None else seqlen * (dilation + 1)
         self.seqlen = seqlen
         self.stride = stride
         self.dilation = dilation
+
+        #Check if seqlen, stride and dilation values make sense
         if seqlen < 0:
             raise ValueError('"seqlen" must be positive. Got {0}.'.format(seqlen))
-        if dilation < 0:
-            raise ValueError('"dilation" must be positive. Got {0}.'.format(dilation))
         if stride < 0:
             raise ValueError('"stride" must be positive. Got {0}.'.format(stride))
+        if dilation < 0:
+            raise ValueError('"dilation" must be positive. Got {0}.'.format(dilation))
 
+        ### START, END ###
+        # Check if start and end are 'None' or int
         if not (isinstance(start, int) or start is None):
             raise TypeError('"start" must be int or None. Got {0}.'.format(type(start)))
         if not (isinstance(end, int) or end is None):
             raise TypeError('"end" must be int or None. Got {0}.'.format(type(end)))
+
+        #Assignement 3
         start = start if start is not None else 0
         self.start = start
         self.end = end
+
+        #Check if start and end values make sense
         if start is not None and start < 0:
             raise ValueError(
                 '"start" must be None or positive. Got {0}.'.format(stride)
@@ -98,68 +91,76 @@ class KITTI(data.Dataset):
             )
 
         # preprocess sequences to be a tuple or None
+        #sequences is a path to a textfile
         if isinstance(sequences, str):
+            # read sequences from textfile
             if os.path.isfile(sequences):
                 with open(sequences, "r") as f:
-                    sequences = tuple(f.read().split("\n"))[:-1]
+                    sequences = tuple(f.read().split("\n"))
             else:
                 raise ValueError(
                     "incorrect filename: {} doesn't exist".format(sequences)
                 )
-        else:
-            raise ValueError(
-                "Sequences must be .txt file with sequences"
-            )
+        # sequences is already a touple or 'None'
+        elif not (sequences is None or isinstance(sequences, tuple)):
+            msg = '"sequences" should either be path to .txt file or tuple of sequence names or None, '
+            msg += " but was of type {0} instead"
+            raise TypeError(msg.format(type(sequences)))
+        if isinstance(sequences, tuple):
+            if len(sequences) == 0:
+                raise ValueError(
+                    '"sequences" must have atleast one element. Got len(sequences)=0'
+                )
 
         sequence_paths = []
         # check folder structure for sequence:
-        for item in os.listdir(os.path.join(basedir, "sequences")):
-            if os.path.isdir(os.path.join(basedir, "sequences", item)):
+        for item in os.listdir(os.path.join(basedir): # iterate over all items in basedir
+            if os.path.isdir(os.path.join(basedir, item)): #is the item a folder?
                 if sequences is None or (sequences is not None and item in sequences):
-                    sequence_paths.append(os.path.join(basedir, "sequences", item))
-                    
+                    sequence_paths.append(os.path.join(basedir, item)) #add folder path of sequences
+
+        # Check if folder paths list is not empty
         if len(sequence_paths) == 0:
             raise ValueError(
                 'Incorrect folder structure in basedir ("{0}"). '.format(basedir)
             )
+        
+        #Check if folder path list is of equal length as provided sequence list
         if sequences is not None and len(sequence_paths) != len(sequences):
             msg = '"sequences" contains sequences not available in basedir:\n'
             msg += '"sequences" contains: ' + ", ".join(sequences) + "\n"
             msg += '"basedir" contains: ' + ", ".join(sequence_paths) + "\n"
             raise ValueError(msg)
-
-        # get association and pose file paths
-        colorfiles, depthfiles, poses = [], [], []
+        
+        #Get a list of all color and depth files
+        colorfiles, depthfiles = [], []
         idx = np.arange(seqlen) * (dilation + 1)
-        for sequence_path in sequence_paths:
-            seq_name = os.path.split(sequence_path)[-1]
-            seq_poses = odometry(basedir, seq_name).poses
-            seq_colorfiles = []
-            for filepath in sorted(os.listdir(os.path.join(sequence_path, "image_3"))):
-                seq_colorfiles.append(os.path.join(sequence_path, "image_3", filepath)) #Todo: Remove hard-coded image_3
+        for sequence_path in sequence_paths: #go through all sequences
+            seq_colorfiles, seq_depthfiles = [], []
+            for sequence_item in os.path.listdir(sequence_path) #go through all files in the folder
+                if os.path.isfile(sequence_item) and not sequence_item.endswith(".txt")
+                    seq_colorfiles.append(sequence_item) #add to colorfile list if it is not a directory
+            for sequence_item in os.path.listdir(os.path.join(sequence_path, depth) 
+                seq_depthfiles.append(sequence_item) # add to depthfile list
+            
+            # take start and stride into account for writing to colorfile and depthfile list
             num_frames = len(seq_colorfiles)
             for start_ind in range(0, num_frames, stride):
                 if (start_ind + idx[-1]) >= num_frames:
                     break
                 inds = start_ind + idx
                 colorfiles.append([seq_colorfiles[i] for i in inds])
-
-                if self.return_pose:
-                    poses.append([seq_poses[i] for i in inds])
+                depthfiles.append([seq_depthfiles[i] for i in inds])
 
         self.num_sequences = len(colorfiles)
 
         # Class members to store the list of valid filepaths.
         self.colorfiles = colorfiles
-        self.poses = poses
+        self.depthfiles = depthfiles
 
-        # Camera intrinsics matrix for KITTI dataset #TODO: not only cam3
-        K_cam3 = odometry(basedir, seq_name).calib.K_cam3
-        intrinsics_np = np.zeros((4, 4))
-        intrinsics_np[:3, :3] = K_cam3
-        intrinsics_np[3, 3] = 1
+        #Camera intrinsics
         intrinsics = torch.tensor(
-            intrinsics_np
+            [[259.42895, 0, 162.79122], [0, 277.05046, 135.32596], [0, 0, 1]]
         ).float()
         self.intrinsics = datautils.scale_intrinsics(
             intrinsics, self.height_downsample_ratio, self.width_downsample_ratio
@@ -170,63 +171,57 @@ class KITTI(data.Dataset):
         return self.num_sequences
 
     def __getitem__(self, idx: int):
-        r"""Returns the data from the sequence at index idx.
+        """Returns the data from the sequence at index idx.
 
         Returns:
             color_seq (torch.Tensor): Sequence of rgb images of each frame
-            depth_seq (torch.Tensor): Sequence of depths of each frame
-            pose_seq (torch.Tensor): Sequence of poses of each frame
-            transform_seq (torch.Tensor): Sequence of transformations between each frame in the sequence and the
-                previous frame. Transformations are w.r.t. the first frame in the sequence having identity pose
-                (relative transformations with first frame's pose as the reference transformation). First
-                transformation in the sequence will always be `torch.eye(4)`.
+            depth_seq (torch.Tensor): Sequence of depths of each frame                      
             intrinsics (torch.Tensor): Intrinsics for the current sequence
             framename (str): Name of the frame
-            timestamp_seq (str): Sequence of timestamps of matched rgb, depth and pose stored
-                as "rgb rgb_timestamp depth depth_timestamp pose pose_timestamp\n".
+            
 
         Shape:
             - color_seq: :math:`(L, H, W, 3)` if `channels_first` is False, else :math:`(L, 3, H, W)`. `L` denotes
                 sequence length.
             - depth_seq: :math:`(L, H, W, 1)` if `channels_first` is False, else :math:`(L, 1, H, W)`. `L` denotes
                 sequence length.
-            - pose_seq: :math:`(L, 4, 4)` where `L` denotes sequence length.
-            - transform_seq: :math:`(L, 4, 4)` where `L` denotes sequence length.
             - intrinsics: :math:`(1, 4, 4)`
         """
 
-        # Read in the color, depth, pose, label and intrinstics info.
+        # Read in the color, depth and intrinsics info
         color_seq_path = self.colorfiles[idx]
+        depth_seq_path = self.depthfiles[idx]
 
-        color_seq, pose_seq = [], []
+        color_seq, depth_seq = [], []
         for i in range(self.seqlen):
             color = np.asarray(imageio.imread(color_seq_path[i]), dtype=float)
             color = self._preprocess_color(color)
             color = torch.from_numpy(color)
             color_seq.append(color)
 
+            if self.return_depth:
+                depth = np.asarray(imageio.imread(depth_seq_path[i]), dtype=np.int64)
+                depth = self._preprocess_depth(depth)
+                depth = torch.from_numpy(depth)
+                depth_seq.append(depth)
+
         output = []
         color_seq = torch.stack(color_seq, 0).float()
         output.append(color_seq)
 
-        if self.return_dummy_depth:
-            output.append([])
+        if self.return_depth:
+            depth_seq = torch.stack(depth_seq, 0).float()
+            output.append(depth_seq)
 
         if self.return_intrinsics:
             intrinsics = self.intrinsics
             output.append(intrinsics)
 
-        if self.return_pose:
-            poses = self.poses[idx]
-            pose_seq = [torch.from_numpy(pose) for pose in poses]
-            pose_seq = torch.stack(pose_seq, 0).float()
-            pose_seq = self._preprocess_poses(pose_seq)
-            output.append(pose_seq)
-
         return tuple(output)
 
+    
     def _preprocess_color(self, color: np.ndarray):
-        r"""Preprocesses the color image by resizing to :math:`(H, W, C)`, (optionally) normalizing values to
+        """Preprocesses the color image by resizing to :math:`(H, W, C)`, (optionally) normalizing values to
         :math:`[0, 1]`, and (optionally) using channels first :math:`(C, H, W)` representation.
 
         Args:
@@ -248,22 +243,26 @@ class KITTI(data.Dataset):
             color = datautils.channels_first(color)
         return color
 
-    def _preprocess_poses(self, poses: torch.Tensor):
-        r"""Preprocesses the poses by setting first pose in a sequence to identity and computing the relative
-        homogenous transformation for all other poses.
+    def _preprocess_depth(self, depth: np.ndarray):
+        """Preprocesses the depth image by resizing, adding channel dimension, and scaling values to meters. Optionally
+        converts depth from channels last :math:`(H, W, 1)` to channels first :math:`(1, H, W)` representation.
 
         Args:
-            poses (torch.Tensor): Pose matrices to be preprocessed
+            depth (np.ndarray): Raw depth image
 
         Returns:
-            Output (torch.Tensor): Preprocessed poses
+            np.ndarray: Preprocessed depth
 
         Shape:
-            - poses: :math:`(L, 4, 4)` where :math:`L` denotes sequence length.
-            - Output: :math:`(L, 4, 4)` where :math:`L` denotes sequence length.
+            - depth: :math:`(H_\text{old}, W_\text{old})`
+            - Output: :math:`(H, W, 1)` if `self.channels_first == False`, else :math:`(1, H, W)`.
         """
-        return relative_transformation(
-            poses[0].unsqueeze(0).repeat(poses.shape[0], 1, 1), poses
+        depth = cv2.resize(
+            depth.astype(float),
+            (self.width, self.height),
+            interpolation=cv2.INTER_NEAREST,
         )
-
-
+        depth = np.expand_dims(depth, -1)
+        if self.channels_first:
+            depth = datautils.channels_first(depth)
+        return depth / self.scaling_factor
