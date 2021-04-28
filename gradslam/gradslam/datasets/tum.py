@@ -236,8 +236,10 @@ class TUM(data.Dataset):
                         )
                     )
                     raise ValueError(msg)
+
                 if sequences is None or (sequences is not None and item in sequences):
                     sequence_paths.append(os.path.join(basedir, item))
+
         if len(sequence_paths) == 0:
             raise ValueError(
                 'Incorrect folder structure in basedir ("{0}"). '.format(basedir)
@@ -256,16 +258,21 @@ class TUM(data.Dataset):
         # get association and pose file paths
         rgb_text_files, depth_text_files, pose_text_files = [], [], []
         for sequence_path in sequence_paths:
+            #joins all rgb.txt files, generates a long list of all rgb file names
             rgb_text_file = os.path.join(sequence_path, "rgb.txt")
             if not os.path.isfile(rgb_text_file):
                 msg = 'Missing "rgb.txt" file in {0}. '.format(rgb_text_file)
                 raise ValueError(msg + dirmsg)
             rgb_text_files.append(rgb_text_file)
+
+            #joins all depth.txt files, generates a long list of all depth file names
             depth_text_file = os.path.join(sequence_path, "depth.txt")
             if not os.path.isfile(depth_text_file):
                 msg = 'Missing "depth.txt" file in {0}. '.format(depth_text_file)
                 raise ValueError(msg + dirmsg)
             depth_text_files.append(depth_text_file)
+
+            #joins all pose.txt files, generates a long list of all pose file names
             if self.load_poses:
                 pose_text_file = os.path.join(sequence_path, "groundtruth.txt")
                 if not os.path.isfile(pose_text_file):

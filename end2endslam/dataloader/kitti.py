@@ -117,6 +117,7 @@ class KITTI(data.Dataset):
             if os.path.isdir(os.path.join(basedir, "sequences", item)):
                 if sequences is None or (sequences is not None and item in sequences):
                     sequence_paths.append(os.path.join(basedir, "sequences", item))
+                    
         if len(sequence_paths) == 0:
             raise ValueError(
                 'Incorrect folder structure in basedir ("{0}"). '.format(basedir)
