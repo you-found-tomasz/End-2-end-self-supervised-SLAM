@@ -100,6 +100,26 @@ NYU:
 downloader doesnt work, need download by hand:
 https://onedrive.live.com/?authkey=%21AKVvEAT14TgiFEE&cid=36712431A95E7A25&id=36712431A95E7A25%212551&parId=36712431A95E7A25%21472&action=locate
 
+# Copying files between cluster and local computer (unix)
+
+Secure copy (scp) is most commonly used to transfer filesscp[options] source destination
+
+All the following examples need to be run on your local computer
+1. Upload a file from your workstation to Euler (home directory)
+```shell
+scp file username@euler.ethz.ch:
+```
+2. Download a file from Euler to your workstation (current directory)
+```shell
+scp username@euler.ethz.ch:file .
+```
+3. Copy a whole directory
+```shell
+scp-r localdirusername@euler.ethz.ch:remotedir
+```
+
+
+
 
 # Setup
 
