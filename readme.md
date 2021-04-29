@@ -102,8 +102,6 @@ https://onedrive.live.com/?authkey=%21AKVvEAT14TgiFEE&cid=36712431A95E7A25&id=36
 
 # Copying files between cluster and local computer (unix)
 
-Secure copy (scp) is most commonly used to transfer filesscp[options] source destination
-
 All the following examples need to be run on your local computer
 1. Upload a file from your workstation to Euler (home directory)
 ```shell
