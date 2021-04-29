@@ -101,6 +101,10 @@ class SCSfmWrapper(nn.Module):
         intrinsics = input_dict["intrinsic"]
         poses = input_dict["pose"]
 
+        # correct for last batch size
+        if poses.shape[0] != colors.shape[0]:
+            poses = poses[0:colors.shape[0], :, :]
+
         # predict depth
         pred_depths = self(colors)
 
