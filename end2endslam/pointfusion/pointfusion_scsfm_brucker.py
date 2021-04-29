@@ -4,6 +4,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from gradslam.datasets.tum import TUM
+from end2endslam.dataloader.nyu import NYU
 from gradslam.slam.pointfusion import PointFusion
 from gradslam.structures.pointclouds import Pointclouds
 #from perception.SC_SfMLearner_Release.scsfmwrapper import SCSfmWrapper
@@ -32,11 +33,12 @@ parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
 parser.add_argument(
     "--dataset",
     type=str,
-    default= "tum",
-    required=False,
-    choices=["tum"],
+    required=True,
+    choices=["tum", "nyu", "nyu-regular"],
     help="Dataset to use. Supported options:\n"
-    " tum = Iterative Closest Point\n",
+    " tum = Iterative Closest Point\n"
+    " nyu = rectified nyu dataset as provided by SfM-Learner"
+    " nyu-regular = NOT SUPPORTET YET: regular nyu dataset",
 )
 parser.add_argument(
     "--dataset_path",
@@ -100,9 +102,16 @@ if __name__ == "__main__":
     if args.dataset == "tum":
         # doesn't work with 120 / 160, probably has something to do with upsampling / downsampling in ResNet
         dataset = TUM(args.dataset_path, seqlen=args.seq_length, height=480, width=640, sequences=None)
+    elif args.dataset == "nyu":
+        # right now only working with rectified pictures as provided by SfM-github
+        dataset = NYU(args.dataset_path, version="rectified", seqlen=args.seq_length, height=480, width=640, sequences=None)
+    elif args.dataset == "nyu-regular":
+        # NOT SUPPORTET YET!!!
+        dataset = NYU(args.dataset_path, version="regular", seqlen=args.seq_length, height=480, width=640, sequences=None)
+
 
     # get data
-    loader = DataLoader(dataset=dataset, batch_size=args.batch_size, shuffle=True)
+    loader = DataLoader(dataset=dataset, batch_size=args.batch_size, shuffle=True )
 
     writer = SummaryWriter()
 
@@ -112,11 +121,12 @@ if __name__ == "__main__":
     counter = {"every": 0, "batch": 0, "detailed": 0}
     for e_idx in range(epochs):
         # TODO: remove gt depth dependency
-        for batch_idx, (colors, depths, intrinsics, poses, *_) in enumerate(loader):
+        #for batch_idx, (colors, depths, intrinsics, poses, *_) in enumerate(loader):
+        for batch_idx, (colors, depths, intrinsics, *_) in enumerate(loader):
             colors = colors.to(device)
             depths = depths.to(device)
             intrinsics = intrinsics.to(device)
-            poses = poses.to(device)
+            #poses = poses.to(device)
 
             # Hard coded
             batch_loss = 0
