@@ -158,7 +158,7 @@ class SCSfmWrapper(nn.Module):
             normalizer = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
             mapper = cm.ScalarMappable(norm=normalizer, cmap='magma')
             pred_depth_np = (mapper.to_rgba(vis_pred_depth[:, :, 0])[:, :, :3] * 255).astype(np.uint8)
-            imageio.imwrite(os.path.join(DEBUG_PATH, "debug_depth_proj.png"), pred_depth_np)
+            imageio.imwrite(os.path.join(DEBUG_PATH, "debug_depth_pred.png"), pred_depth_np)
             # SLAM Vis
             # o3d.visualization.draw_geometries([pointclouds.open3d(0)])
 
