@@ -115,7 +115,7 @@ scp username@euler.ethz.ch:file .
 ```
 3. Copy a whole directory
 ```shell
-scp-r localdirusername@euler.ethz.ch:remotedir
+scp -r localdirusername@euler.ethz.ch:remotedir
 ```
 
 
