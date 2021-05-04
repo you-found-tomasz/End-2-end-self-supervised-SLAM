@@ -148,5 +148,9 @@ def image2image(rgb_from, rgb_to, depth_from, intrinsic, pose, device):
     depth_from = depth_from.to(device)
     intrinsic = intrinsic.to(device)
     pose = pose.to(device)
-    images_reprojected = Cam2Cam.transform(rgb_from, depth_from, intrinsic[:, 0, ::], intrinsic[:, 0, ::], pose, pose, device=device)
+    #TODO: verify this, probably wrong!
+    eye_pose = torch.eye(4, device=device).view(1, 4, 4).repeat(8, 1, 1)
+    images_reprojected = Cam2Cam.transform(rgb_from, depth_from, intrinsic[:, 0, ::], intrinsic[:, 0, ::], pose, eye_pose,
+                                           device=device)
+    #images_reprojected = Cam2Cam.transform(rgb_from, depth_from, intrinsic[:, 0, ::], intrinsic[:, 0, ::], pose, pose, device=device)
     return images_reprojected
