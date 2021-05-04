@@ -116,7 +116,13 @@ scp username@euler.ethz.ch:file .
 scp -r localdir username@euler.ethz.ch:remotedir
 ```
 
+# New version with losses from SC-Sfm-Learner
 
+Run command:
+```shell
+python pointfusion_scsfm.py --dataset tum --dataset_path "/home/matthias/git/End-2-end-self-supervised-SLAM/sample_data/dataset_TUM" --odometry icp --debug_path "/home/matthias/data/3dv_debug/" --model_name test1 
+--loss_photo_factor 1 --loss_geom_factor 0.5 --loss_smooth_factor 0.1 --loss_cons_factor 0.1 --loss_gt_factor 0.1 --log_freq 10
+```
 
 
 # Setup
