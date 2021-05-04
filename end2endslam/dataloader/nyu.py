@@ -16,34 +16,6 @@ import matplotlib.pyplot as plt
 __all__ = ["NYU"]
 
 class NYU(data.Dataset):
-    """ A torch Dataset for loading in the NYU_v2 dataset. Intended to use both the original as well as the rectified
-    Version provided by the SCf-SMLearner, right now it only supports the rectified Version. It will fetch rgb images
-    and depth maps.
-    It expects the following folder structur:
-
-    | ├── NYU_v2                            <-- provide a link to this folder
-    | │   ├── rectified                     <-- 'nyu' dataset uses this folder 
-    | │   │   ├── basement_0001a            <-- folders with different scenes ('sequences')
-    | │   │   ├── basement_0001a
-    | │   ├── regular                       <-- 'nyu-regular' uses this folder, NOT YET IMPLEMENTED
-    | │   │   ├── basement_0001a
-    | │   │   ├── basement_0001a
-
-    
-    Inside a sequence folder the following structur is expected:
-    
-    | ├── basement_0001a
-    | │   ├── depth/
-    | │   │     ├── 00001.png               <-- depth folder contains .png files with depth information
-    | │   │     ├── 00002.png
-    | │   │     ├── 00003.png
-    | │   ├── 00001.jpg                     <-- sequence folder directly contains .jpg rgb images
-    | │   ├── 00002.jpg
-    | │   ├── 00003.jpg
-    | │   ├── cam.txt                       <-- contains camera intrinsics, TODO: make it not hardcoded
-  
-    
-    """
 
     def __init__(
         self,
