@@ -46,6 +46,7 @@ class SCSfmWrapper(nn.Module):
     def forward(self, images):
         # PREDICTION
         self.disp_net.train()
+        
         input_image = images.to(self.device)
         outputs = self.disp_net(input_image)
 
@@ -100,7 +101,7 @@ class SCSfmWrapper(nn.Module):
         colors = input_dict["rgb"]
         intrinsics = input_dict["intrinsic"]
         poses = input_dict["pose"]
-
+    
         # predict depth
         pred_depths = self(colors)
 
@@ -156,7 +157,8 @@ class SCSfmWrapper(nn.Module):
             pred_depth_np = (mapper.to_rgba(vis_pred_depth[:, :, 0])[:, :, :3] * 255).astype(np.uint8)
             imageio.imwrite(os.path.join(DEBUG_PATH, "debug_depth_proj.png"), pred_depth_np)
             # SLAM Vis
-            # o3d.visualization.draw_geometries([pointclouds.open3d(0)])
+            import open3d as o3d
+            o3d.visualization.draw_geometries([pointclouds.open3d(0)])
 
         return pred_depths, error["abs"], slam, pointclouds, live_frame
 
