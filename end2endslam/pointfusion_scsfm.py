@@ -5,34 +5,32 @@ from torch.utils.data import DataLoader
 
 import numpy as np
 import os
-
+import cv2 as cv
+# import open3d as o3d # TODO: remove
 from gradslam.structures.rgbdimages import RGBDImages
-
-#from gradslam.datasets.tum import TUM
 from end2endslam.dataloader.tum import TUM
 from end2endslam.dataloader.nyu import NYU
 from gradslam.slam.pointfusion import PointFusion
 from gradslam.structures.pointclouds import Pointclouds
-#from perception.SC_SfMLearner_Release.scsfmwrapper import SCSfmWrapper
 
 from end2endslam.scsfmwrapper import SCSfmWrapper
-from end2endslam.losses import pred_loss_depth_consistency, pred_loss_reproj, pred_loss_depth
-
+from losses.unified_loss import pred_loss_unified
 
 from torch.optim import Adam
 from torch.utils.tensorboard import SummaryWriter
+import matplotlib as mpl
+import matplotlib.cm as cm
+import imageio
 
 """r Example run commands:
 
 (leave TUM folder structure unchanged):
 
-Debug mode with visulizations saved to given path:
-pointfusion_scsfm_brucker.py --dataset tum --dataset_path "/home/matthias/data/tum_test_1" --odometry icp 
---loss "depth_consistency"
---debug_path "/home/matthias/data/"
-Plain mode:
-pointfusion_scsfm_brucker.py --dataset tum --dataset_path "/home/matthias/data/tum_test_1" --odometry icp 
---loss "depth_consistency"
+runfile('/home/matthias/git/End-2-end-self-supervised-SLAM/end2endslam/pointfusion_scsfm.py', 
+args=['--dataset', 'tum', '--dataset_path', '/home/matthias/git/End-2-end-self-supervised-SLAM/sample_data/dataset_TUM', 
+'--odometry', 'icp', '--seq_length', '10', '--batch_size', '8', '--debug_path', '/home/matthias/data/3dv_debug/', 
+'--loss_photo_factor', '1', '--loss_geom_factor', '0.5', '--loss_smooth_factor', '0.1', '--loss_cons_factor', '0.0', 
+'--loss_gt_factor', '0.0', '--log_freq', '1'], wdir='/home/matthias/git/End-2-end-self-supervised-SLAM/end2endslam')
 
 
 """
@@ -75,7 +73,13 @@ parser.add_argument(
     "--debug_path",
     type=str,
     default=None,
-    help="Debug, Depth and SLAM Map Visualization"
+    help="Path for debug visualizations"
+)
+parser.add_argument(
+    "--model_name",
+    type=str,
+    default="test1",
+    help="Model name"
 )
 parser.add_argument(
     "--seq_length",
@@ -90,12 +94,48 @@ parser.add_argument(
     help="SLAM Sequence Length"
 )
 parser.add_argument(
-    "--loss",
-    type=str,
-    default="depth_consistency",
-    choices=["gt_depth", "depth_consistency", "reprojection"]
+    "--log_freq",
+    type=int,
+    default=10,
+    help="Frequency for logging"
+)
+parser.add_argument(
+    "--loss_photo_factor",
+    type=float,
+    default=0.3
+)
+parser.add_argument(
+    "--loss_geom_factor",
+    type=float,
+    default=0.3
+)
+parser.add_argument(
+    "--loss_smooth_factor",
+    type=float,
+    default=0.0
+)
+parser.add_argument(
+    "--loss_cons_factor",
+    type=float,
+    default=0.0
+)
+parser.add_argument(
+    "--loss_gt_factor",
+    type=float,
+    default=1.0
+)
+parser.add_argument(
+    "--seed",
+    type=int,
+    default=123
 )
 args = parser.parse_args()
+
+torch.manual_seed(args.seed)
+np.random.seed(args.seed)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+torch.cuda.manual_seed(args.seed)
 
 #original image size (hardcoded for TUM!)
 ORIG_HEIGHT = 480
@@ -121,20 +161,10 @@ def slam_step(input_dict, slam, pointclouds, prev_frame,device):
     """ Perform SLAM step
     """
     # get inputs
-    #colors = input_dict["rgb"]
     intrinsics = input_dict["intrinsic"]
     poses = input_dict["pose"]
-    #pred_depths = input_dict["pred_depths"]
-
     colors = input_dict["rgb_slam"]
     pred_depths = input_dict["pred_depths_slam"]
-
-    # Ground truth Depth for comparison (only for debug)
-    # if DEBUG_PATH:
-    #     gt_depths = input_dict["depth"]
-    #     gt_depths = torch.nn.functional.interpolate(input=gt_depths, size=(120, 160), mode="nearest")
-    #     gt_depths_u = torch.unsqueeze(gt_depths, 1).permute(0, 1, 3, 4, 2)
-
 
     # added artificial sequence length dimension and then don't use it (stupid but necessary)
     # permute since slam does NOT support channels_first = True
@@ -181,6 +211,7 @@ if __name__ == "__main__":
     loader = DataLoader(dataset=dataset, batch_size=args.batch_size, shuffle=False )
 
     writer = SummaryWriter()
+    model_path = os.path.join(args.debug_path, args.model_name)
 
     # Training
     epochs = 50
@@ -196,7 +227,7 @@ if __name__ == "__main__":
             #poses = poses.to(device)
 
             # Hard coded
-            batch_loss = 0
+            batch_loss = {}
             pred_depths = []
 
             # Initialize SLAM and pointclouds
@@ -209,8 +240,14 @@ if __name__ == "__main__":
             intrinsics[:, :, 1, :] = intrinsics[:, :, 1, :] * SLAM_HEIGHT / ORIG_HEIGHT
 
             # Iterate over frames in Sequence
-            for pred_index in range(args.seq_length):
+            for pred_index in range(0, args.seq_length):
                 depth_net.zero_grad()
+
+                # Logging?
+                if batch_idx % args.log_freq == 0 and pred_index == args.seq_length - 1 and not args.debug_path is None:
+                    log = True
+                else:
+                    log = False
 
                 # get input tensors
                 input_dict = {"device": device}
@@ -222,15 +259,22 @@ if __name__ == "__main__":
                 if poses.shape[0] != colors.shape[0]: 
                     poses = poses[0:colors.shape[0], :, :]
                 input_dict["pose"] = poses
-                
                 # input_dict["pose"] = torch.matmul(torch.inverse(poses[:, pred_index - 1, ::]), poses[:, pred_index, ::])
+
                 input_dict["depth"] = depths[:, pred_index, ::].permute(0, 3, 1, 2)
+                input_dict["depth_ref"] = depths[:, pred_index - 1, ::].permute(0, 3, 1, 2)
                 input_dict["intrinsic"] = intrinsics
 
-
                 # predict depth
+                # TODO: seems inefficient, could also store previous depth prediction
                 depth_predictions = depth_net(input_dict["rgb"])
+                input_dict["pred_depths_ref"] = depth_net(input_dict["rgb_ref"])
                 input_dict["pred_depths"] = depth_predictions
+
+                #TODO: use it to test with gt
+                if False:
+                    input_dict["pred_depths_ref"] = input_dict["depth_ref"]
+                    input_dict["pred_depths"] = input_dict["depth"]
 
                 # Downsample (since depth prediction does not work in (120,160))
                 colors_slam = torch.nn.functional.interpolate(input=input_dict["rgb"], size=(SLAM_HEIGHT, SLAM_WIDTH), mode="bicubic")
@@ -238,32 +282,69 @@ if __name__ == "__main__":
                 input_dict["rgb_slam"] = colors_slam
                 input_dict["pred_depths_slam"] = pred_depths_slam
 
-                #SLAM
-                slam, pointclouds, live_frame = slam_step(input_dict,slam, pointclouds, live_frame, device)
+                # SLAM to update poses
+                slam, pointclouds, live_frame = slam_step(input_dict, slam, pointclouds, live_frame, device)
+                input_dict["pose"] = live_frame.poses.detach()
+                # TODO: use it to visualize SLAM
+                if False:
+                    # SLAM Vis
+                    o3d.visualization.draw_geometries([pointclouds.open3d(0)])
+
+                # First frame: SLAM only, for pose, no backpropagation since we don't have poses / reference frame
+                if pred_index == 0:
+                    continue
 
                 # predict, backprop, and optimize (depth consistency loss is computed every frame of sequence)
-                if args.loss == "depth_consistency":
-                    loss = pred_loss_depth_consistency(input_dict, slam, pointclouds, live_frame, args.debug_path,device)
-                elif args.loss == "reprojection":
-                    depth_predictions, loss = pred_loss_reproj(depth_net,input_dict)
-                elif args.loss == "gt_depth":
-                    depth_predictions, loss = pred_loss_depth(depth_net,input_dict)
-
-                batch_loss += loss.item() * 0.1
+                loss_dict = pred_loss_unified(args, input_dict, slam, pointclouds, live_frame)
+                loss = loss_dict["com"]
                 loss.backward()
                 optim.step()
-                print("Batch_idx: {} / Seq: {} / Loss ({}): {}".format(batch_idx, pred_index, args.loss, loss))
+                print("Epoch: {}, Batch_idx: {}.{} / Loss : {:.4f}".format(e_idx, batch_idx, pred_index, loss))
+
+                # Log
+                if log:
+                    print("Logging depths images to {}".format(model_path))
+                    # Depth Vis 1
+                    scaled_depth_predictions = input_dict["pred_depths"]
+                    cv.imwrite("{}/gt.jpg".format(model_path),
+                               40 * np.vstack(input_dict["depth"].detach().cpu().permute(0, 2, 3, 1).cpu().numpy()))
+                    cv.imwrite("{}/pred.jpg".format(model_path),
+                               40 * np.vstack(scaled_depth_predictions.detach().cpu().permute(0, 2, 3, 1).numpy()))
+                    # Depth Vis 2
+                    # GT
+                    vis_gt_depth = input_dict["depth"].detach().cpu().numpy()
+                    vmax = np.percentile(vis_gt_depth, 95)
+                    vmin = vis_gt_depth.min()
+                    normalizer = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+                    mapper = cm.ScalarMappable(norm=normalizer, cmap='magma')
+                    gt_depth_np = (mapper.to_rgba(vis_gt_depth[0, 0, :, :])[:, :, :3] * 255).astype(np.uint8)
+                    imageio.imwrite(os.path.join(model_path, "debug_depth_gt.png"), gt_depth_np)
+                    # Prediction
+                    vis_pred_depth = input_dict["pred_depths"].detach().cpu().numpy()
+                    vmax = np.percentile(vis_pred_depth, 95)
+                    vmin = vis_pred_depth.min()
+                    normalizer = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+                    mapper = cm.ScalarMappable(norm=normalizer, cmap='magma')
+                    pred_depth_np = (mapper.to_rgba(vis_pred_depth[0, 0, :, :])[:, :, :3] * 255).astype(np.uint8)
+                    imageio.imwrite(os.path.join(model_path, "debug_depth_pred.png"), pred_depth_np)
 
                 # Tensorboard
-                writer.add_scalar("Depth/Perstep_loss", loss.item(), counter["every"])
-                counter["every"] +=1
+                for loss_type in loss_dict.keys():
+                    writer.add_scalar("Perstep_loss/_{}".format(loss_type), loss_dict[loss_type].item(), counter["every"])
+                    if not loss_type in batch_loss.keys():
+                        batch_loss[loss_type] = loss_dict[loss_type].item() * 0.1
+                    else:
+                        batch_loss[loss_type] += loss_dict[loss_type].item() * 0.1
+
+                counter["every"] += 1
 
                 pred_depths.append(depth_predictions.permute(0, 2, 3, 1).unsqueeze(1))
 
-            writer.add_scalar("Depth/Batchwise_loss", batch_loss, counter["batch"] )
-            losses.append(batch_loss)
-            counter["batch"] +=1
+            for loss_type in loss_dict.keys():
+                writer.add_scalar("Batchwise_loss/_{}".format(loss_type), batch_loss[loss_type], counter["batch"])
 
+            counter["batch"] +=1
             pred_depths = torch.cat(pred_depths, dim= 1)
+
 
 
