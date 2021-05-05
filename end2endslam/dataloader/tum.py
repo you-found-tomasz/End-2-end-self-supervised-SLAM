@@ -472,12 +472,15 @@ class TUM(data.Dataset):
             - Input: :math:`(H_\text{old}, W_\text{old}, C)`
             - Output: :math:`(H, W, C)` if `self.channels_first == False`, else :math:`(C, H, W)`.
         """
+        #color is 480x640
         color = cv2.resize(
             color, (self.width, self.height), interpolation=cv2.INTER_LINEAR
         )
+        #color is heightxheight
         #CROP width to cropped_width
         margin = (color.shape[1] - self.cropped_width)//2
         color = color[:,margin:color.shape[1]-margin,:]
+        #color is heightxcropped_widthay<a<a<qa<a<sa<c c1w 
 
         if self.normalize_color:
             color = datautils.normalize_image(color)
