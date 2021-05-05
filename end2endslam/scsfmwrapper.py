@@ -52,7 +52,11 @@ class SCSfmWrapper(nn.Module):
     def forward(self, images):
         #images is in format: batch x color_channels x height x width
 
-        input_images = images.to(self.device)
+        #input_images = images.to(self.device) #PERFORMANCE!
+
+        #apply hardcoded normalization (as done by scsfml)
+        #input images have value in range [0,1]
+        input_images = ((images - 0.45)/0.225).to(self.device)
 
         outputs = self.disp_net(input_images)
 
