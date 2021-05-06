@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 import numpy as np
 import os
 import cv2 as cv
-# import open3d as o3d # TODO: remove
+import open3d as o3d # TODO: remove
 from gradslam.structures.rgbdimages import RGBDImages
 from end2endslam.dataloader.tum import TUM
 from end2endslam.dataloader.nyu import NYU
@@ -142,8 +142,8 @@ ORIG_HEIGHT = 480
 ORIG_WIDTH = 640
 
 #image size used for depth prediction
-DEPTH_PRED_HEIGHT = 256
-DEPTH_PRED_WIDTH = 320
+DEPTH_PRED_HEIGHT = 256 #256
+DEPTH_PRED_WIDTH = 320 #320
 
 #image size used for SLAM
 SLAM_HEIGHT = 64#128
@@ -161,9 +161,10 @@ def slam_step(input_dict, slam, pointclouds, prev_frame,device):
     """ Perform SLAM step
     """
     # get inputs
-    intrinsics = input_dict["intrinsic"]
-    poses = input_dict["pose"]
+    intrinsics = input_dict["intrinsic_slam"]
     colors = input_dict["rgb_slam"]
+    # pass identity as poses (important for first frame, dummy for rest)
+    poses = torch.eye(4, device=device).view(1, 4, 4).repeat(colors.shape[0], 1, 1)
     pred_depths = input_dict["pred_depths_slam"]
 
     # added artificial sequence length dimension and then don't use it (stupid but necessary)
@@ -177,7 +178,12 @@ def slam_step(input_dict, slam, pointclouds, prev_frame,device):
     live_frame = rgbdimages[:, 0]
     pointclouds, live_frame.poses = slam.step(pointclouds, live_frame, prev_frame)
 
-    return slam, pointclouds, live_frame
+    if prev_frame == None:
+        relative_pose = live_frame.poses
+    else:
+        relative_pose = torch.matmul(torch.inverse(prev_frame.poses), live_frame.poses)
+
+    return slam, pointclouds, live_frame, relative_pose
 
 
 
@@ -236,8 +242,12 @@ if __name__ == "__main__":
             live_frame = None
 
             # Scale intrinsics since SLAM works on downsampled images
-            intrinsics[:, :, 0, :] = intrinsics[:, :, 0, :] * SLAM_WIDTH / ORIG_WIDTH
-            intrinsics[:, :, 1, :] = intrinsics[:, :, 1, :] * SLAM_HEIGHT / ORIG_HEIGHT
+            intrinsics_slam = intrinsics.clone().detach()
+            intrinsics_slam[:, :, 0, :] = intrinsics_slam[:, :, 0, :] * SLAM_WIDTH / ORIG_WIDTH
+            intrinsics_slam[:, :, 1, :] = intrinsics_slam[:, :, 1, :] * SLAM_HEIGHT / ORIG_HEIGHT
+            intrinsics_depth = intrinsics.clone().detach()
+            intrinsics_depth[:, :, 0, :] = intrinsics_depth[:, :, 0, :] * DEPTH_PRED_WIDTH / ORIG_WIDTH
+            intrinsics_depth[:, :, 1, :] = intrinsics_depth[:, :, 1, :] * DEPTH_PRED_HEIGHT / ORIG_HEIGHT
 
             # Iterate over frames in Sequence
             for pred_index in range(0, args.seq_length):
@@ -253,17 +263,20 @@ if __name__ == "__main__":
                 input_dict = {"device": device}
                 input_dict["rgb"] = (colors[:, pred_index, ::] / 255.0).permute(0, 3, 1, 2)
                 input_dict["rgb_ref"] = (colors[:, pred_index - 1, ::] / 255.0).permute(0, 3, 1, 2)
-                # Initial poses are necessary. We use identity here, could also use gt
-                poses = torch.eye(4, device=device).view(1, 4, 4).repeat(args.batch_size, 1, 1)
+
+                # Initial poses are necessary. We use identity here, could also use gt.
+                # NOW: Done inside slam_step
+                """poses = torch.eye(4, device=device).view(1, 4, 4).repeat(args.batch_size, 1, 1)
                 # correct for last batch size
                 if poses.shape[0] != colors.shape[0]: 
                     poses = poses[0:colors.shape[0], :, :]
                 input_dict["pose"] = poses
-                # input_dict["pose"] = torch.matmul(torch.inverse(poses[:, pred_index - 1, ::]), poses[:, pred_index, ::])
+                # input_dict["pose"] = torch.matmul(torch.inverse(poses[:, pred_index - 1, ::]), poses[:, pred_index, ::])"""
 
                 input_dict["depth"] = depths[:, pred_index, ::].permute(0, 3, 1, 2)
                 input_dict["depth_ref"] = depths[:, pred_index - 1, ::].permute(0, 3, 1, 2)
-                input_dict["intrinsic"] = intrinsics
+                input_dict["intrinsic_slam"] = intrinsics_slam
+                input_dict["intrinsic_depth"] = intrinsics_depth
 
                 # predict depth
                 # TODO: seems inefficient, could also store previous depth prediction
@@ -283,8 +296,8 @@ if __name__ == "__main__":
                 input_dict["pred_depths_slam"] = pred_depths_slam
 
                 # SLAM to update poses
-                slam, pointclouds, live_frame = slam_step(input_dict, slam, pointclouds, live_frame, device)
-                input_dict["pose"] = live_frame.poses.detach()
+                slam, pointclouds, live_frame, relative_poses = slam_step(input_dict, slam, pointclouds, live_frame, device)
+                input_dict["pose"] = relative_poses.detach()
                 # TODO: use it to visualize SLAM
                 if False:
                     # SLAM Vis

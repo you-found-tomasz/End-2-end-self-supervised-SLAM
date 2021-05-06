@@ -11,7 +11,7 @@ def pred_loss_depth_consistency(input_dict, slam, pointclouds, live_frame, DEBUG
     # get inputs
     colors = input_dict["rgb"]
     colors_slam = input_dict["rgb_slam"]  # downscaled
-    intrinsics = input_dict["intrinsic"]
+    intrinsics = input_dict["intrinsic_slam"]
     poses = input_dict["pose"]
     pred_depths = input_dict["pred_depths"]
     pred_depths_slam = input_dict["pred_depths_slam"]  # downscaled

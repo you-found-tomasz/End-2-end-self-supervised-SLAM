@@ -48,7 +48,6 @@ class SCSfmWrapper(nn.Module):
         #self.disp_net.eval() #set in eval mode... this CHANGES the behaviour of the net
         self.disp_net.train() #set in train mode... this CHANGES the behaviour of the net
 
-
     def forward(self, images):
         #images is in format: batch x color_channels x height x width
 
