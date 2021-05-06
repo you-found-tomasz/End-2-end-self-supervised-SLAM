@@ -146,8 +146,8 @@ DEPTH_PRED_HEIGHT = 256 #256
 DEPTH_PRED_WIDTH = 320 #320
 
 #image size used for SLAM
-SLAM_HEIGHT = 64#128
-SLAM_WIDTH = 80#160
+SLAM_HEIGHT = 64 #64#128128
+SLAM_WIDTH = 80 #80#160
 
 #DEPTH PREDICTION MODEL PARAMETERS
 #TODO: implement with args
@@ -205,6 +205,7 @@ if __name__ == "__main__":
         height = DEPTH_PRED_HEIGHT#256 #640/2
         width = int(np.ceil(ORIG_WIDTH*(DEPTH_PRED_HEIGHT/ORIG_HEIGHT))) #342 #ceil(480/2)
         cropped_width = DEPTH_PRED_WIDTH #320 #crop hotizontally (equal margin at both sides)
+        width_befor_cropping = width
         dataset = TUM(args.dataset_path, seqlen=args.seq_length, height=height, width=width, cropped_width=cropped_width, sequences=None)
     elif args.dataset == "nyu":
         # right now only working with rectified pictures as provided by SfM-github
@@ -243,10 +244,12 @@ if __name__ == "__main__":
 
             # Scale intrinsics since SLAM works on downsampled images
             intrinsics_slam = intrinsics.clone().detach()
-            intrinsics_slam[:, :, 0, :] = intrinsics_slam[:, :, 0, :] * SLAM_WIDTH / ORIG_WIDTH
+            #intrinsics_slam[:, :, 0, :] = intrinsics_slam[:, :, 0, :] * SLAM_WIDTH / ORIG_WIDTH
+            intrinsics_slam[:, :, 0, :] = intrinsics_slam[:, :, 0, :] * SLAM_HEIGHT / ORIG_HEIGHT
             intrinsics_slam[:, :, 1, :] = intrinsics_slam[:, :, 1, :] * SLAM_HEIGHT / ORIG_HEIGHT
             intrinsics_depth = intrinsics.clone().detach()
-            intrinsics_depth[:, :, 0, :] = intrinsics_depth[:, :, 0, :] * DEPTH_PRED_WIDTH / ORIG_WIDTH
+            #intrinsics_depth[:, :, 0, :] = intrinsics_depth[:, :, 0, :] * DEPTH_PRED_WIDTH / ORIG_WIDTH
+            intrinsics_depth[:, :, 0, :] = intrinsics_depth[:, :, 0, :] * DEPTH_PRED_HEIGHT / ORIG_HEIGHT
             intrinsics_depth[:, :, 1, :] = intrinsics_depth[:, :, 1, :] * DEPTH_PRED_HEIGHT / ORIG_HEIGHT
 
             # Iterate over frames in Sequence
@@ -285,7 +288,7 @@ if __name__ == "__main__":
                 input_dict["pred_depths"] = depth_predictions
 
                 #TODO: use it to test with gt
-                if False:
+                if True:
                     input_dict["pred_depths_ref"] = input_dict["depth_ref"]
                     input_dict["pred_depths"] = input_dict["depth"]
 
