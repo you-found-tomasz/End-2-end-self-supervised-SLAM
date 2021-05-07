@@ -142,12 +142,12 @@ ORIG_HEIGHT = 480
 ORIG_WIDTH = 640
 
 #image size used for depth prediction
-DEPTH_PRED_HEIGHT = 256 #256
-DEPTH_PRED_WIDTH = 320 #320
+DEPTH_PRED_HEIGHT = 256 #256 #256
+DEPTH_PRED_WIDTH =  320 #320 #320
 
 #image size used for SLAM
-SLAM_HEIGHT = 64 #64#128128
-SLAM_WIDTH = 80 #80#160
+SLAM_HEIGHT = 64 #64 #64#128128
+SLAM_WIDTH = 80 #80 #80#160
 
 #DEPTH PREDICTION MODEL PARAMETERS
 #TODO: implement with args
@@ -283,9 +283,9 @@ if __name__ == "__main__":
 
                 # predict depth
                 # TODO: seems inefficient, could also store previous depth prediction
-                depth_predictions = depth_net(input_dict["rgb"])
-                input_dict["pred_depths_ref"] = depth_net(input_dict["rgb_ref"])
-                input_dict["pred_depths"] = depth_predictions
+                # depth_predictions = depth_net(input_dict["rgb"])
+                # input_dict["pred_depths_ref"] = depth_net(input_dict["rgb_ref"])
+                # input_dict["pred_depths"] = depth_predictions
 
                 #TODO: use it to test with gt
                 if True:
