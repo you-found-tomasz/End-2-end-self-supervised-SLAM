@@ -280,7 +280,7 @@ if __name__ == "__main__":
                 # TODO: seems inefficient, could also store previous depth prediction
                 depth_predictions = depth_net(input_dict["rgb"])
                 input_dict["pred_depths_ref"] = depth_net(input_dict["rgb_ref"])
-                input_dict["pred_depths"] = depth_predictions
+                input_dict["pred_depths"] = depth_net(input_dict["rgb"])
 
                 #TODO: use it to test with gt depth
                 if USE_GT_DEPTH:
@@ -317,12 +317,11 @@ if __name__ == "__main__":
                 # Log
                 if log:
                     print("Logging depths images to {}".format(model_path))
-                    # Depth Vis 1
-                    scaled_depth_predictions = input_dict["pred_depths"]
+                    # Depth Vis
                     mpl.pyplot.imsave("{}/{}_{}_gt.jpg".format(model_path, e_idx, batch_idx),
                                40 * np.vstack(input_dict["depth"].detach().cpu().squeeze().cpu().numpy()))
                     mpl.pyplot.imsave("{}/{}_{}_pred.jpg".format(model_path, e_idx, batch_idx),
-                               40 * np.vstack(scaled_depth_predictions.detach().squeeze().cpu().numpy()))
+                               40 * np.vstack(input_dict["pred_depths"].detach().squeeze().cpu().numpy()))
 
                 # Tensorboard
                 for loss_type in loss_dict.keys():
@@ -334,7 +333,7 @@ if __name__ == "__main__":
 
                 counter["every"] += 1
 
-                pred_depths.append(depth_predictions.permute(0, 2, 3, 1).unsqueeze(1))
+                pred_depths.append(input_dict["pred_depths"].permute(0, 2, 3, 1).unsqueeze(1))
 
             for loss_type in loss_dict.keys():
                 writer.add_scalar("Batchwise_loss/_{}".format(loss_type), batch_loss[loss_type], counter["batch"])
