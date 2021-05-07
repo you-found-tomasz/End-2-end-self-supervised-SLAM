@@ -59,11 +59,19 @@ class SCSfmWrapper(nn.Module):
 
         outputs = self.disp_net(input_images)
 
-        disp = outputs[0] #take biggest scale
+        # Multi scale
+        disp = outputs # multiscale
+        depth_list = []
+        for single_disp in disp:
+            single_depth = 1 / single_disp
+            depth_list.append(single_depth)
 
-        depth = 1/disp #compute depth from disparity
+        # Old: Single scale
+        #disp = outputs[0] #take biggest scale
+        #depth = 1 / disp  # compute depth from disparity
+        #return depth
 
-        return depth
+        return depth_list
 
     
 

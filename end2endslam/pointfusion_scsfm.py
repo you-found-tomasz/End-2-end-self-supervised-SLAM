@@ -132,6 +132,11 @@ parser.add_argument(
     type=int,
     default=123
 )
+parser.add_argument(
+    "--max_scale",
+    type=int,
+    default=1
+)
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
@@ -285,12 +290,16 @@ if __name__ == "__main__":
                 #TODO: use it to test with gt depth
                 if USE_GT_DEPTH:
                     print("WARNING: USING GT DEPTH")
-                    input_dict["pred_depths_ref"] = input_dict["depth_ref"]
-                    input_dict["pred_depths"] = input_dict["depth"]
+                    input_dict["pred_depths_ref"] = list()
+                    input_dict["pred_depths_ref"].append(input_dict["depth_ref"])
+                    input_dict["pred_depths"] = list()
+                    input_dict["pred_depths"].append(input_dict["depth"])
 
                 # Downsample (since depth prediction does not work in (120,160))
                 colors_slam = torch.nn.functional.interpolate(input=input_dict["rgb"], size=(SLAM_HEIGHT, SLAM_WIDTH), mode="bicubic")
-                pred_depths_slam = torch.nn.functional.interpolate(input=input_dict["pred_depths"], size=(SLAM_HEIGHT, SLAM_WIDTH), mode="nearest")
+
+                # Multi-scale: take largest scale only for SLAM
+                pred_depths_slam = torch.nn.functional.interpolate(input=input_dict["pred_depths"][0], size=(SLAM_HEIGHT, SLAM_WIDTH), mode="nearest")
 
                 input_dict["rgb_slam"] = colors_slam
                 input_dict["pred_depths_slam"] = pred_depths_slam
@@ -321,7 +330,7 @@ if __name__ == "__main__":
                     mpl.pyplot.imsave("{}/{}_{}_gt.jpg".format(model_path, e_idx, batch_idx),
                                40 * np.vstack(input_dict["depth"].detach().cpu().squeeze().cpu().numpy()))
                     mpl.pyplot.imsave("{}/{}_{}_pred.jpg".format(model_path, e_idx, batch_idx),
-                               40 * np.vstack(input_dict["pred_depths"].detach().squeeze().cpu().numpy()))
+                               40 * np.vstack(input_dict["pred_depths"][0].detach().squeeze().cpu().numpy()))
 
                 # Tensorboard
                 for loss_type in loss_dict.keys():
@@ -333,7 +342,7 @@ if __name__ == "__main__":
 
                 counter["every"] += 1
 
-                pred_depths.append(input_dict["pred_depths"].permute(0, 2, 3, 1).unsqueeze(1))
+                pred_depths.append(input_dict["pred_depths"][0].permute(0, 2, 3, 1).unsqueeze(1))
 
             for loss_type in loss_dict.keys():
                 writer.add_scalar("Batchwise_loss/_{}".format(loss_type), batch_loss[loss_type], counter["batch"])
