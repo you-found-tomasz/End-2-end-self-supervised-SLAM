@@ -12,6 +12,10 @@ import os
 import numpy as np
 import math
 
+# TODO: Use for Debug
+PRINT_REPROJECTION_IMAGES_PATH = None
+#PRINT_REPROJECTION_IMAGES_PATH = '/home/matthias/data/reproj_vis'
+
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 
@@ -121,17 +125,16 @@ def compute_pairwise_loss(tgt_img, ref_img, tgt_depth, ref_depth, pose, intrinsi
         diff_img = diff_img * weight_mask
     """
     # TODO: Logging, Handle this better!"""
-    if False:
-        DEBUG_PATH = '/home/matthias/data/reproj_vis'
+    if PRINT_REPROJECTION_IMAGES_PATH:
         # Original Color Vis
         vis_orig_color = ref_img.permute(0, 2, 3, 1).detach().cpu().numpy()
-        imageio.imwrite(os.path.join(DEBUG_PATH, "color_ref.png"), np.vstack(vis_orig_color))
+        imageio.imwrite(os.path.join(PRINT_REPROJECTION_IMAGES_PATH, "color_ref.png"), np.vstack(vis_orig_color))
         # Projected Color Vis
         vis_proj_color = ref_img_warped.permute(0, 2, 3, 1).detach().cpu().numpy()
-        imageio.imwrite(os.path.join(DEBUG_PATH, "color_ref_warped.png"), np.vstack(vis_proj_color))
+        imageio.imwrite(os.path.join(PRINT_REPROJECTION_IMAGES_PATH, "color_ref_warped.png"), np.vstack(vis_proj_color))
         # Ref Color vis
         vis_ref_color = tgt_img.permute(0, 2, 3, 1).detach().cpu().numpy()
-        imageio.imwrite(os.path.join(DEBUG_PATH, "color_target.png"), np.vstack(vis_ref_color))
+        imageio.imwrite(os.path.join(PRINT_REPROJECTION_IMAGES_PATH, "color_target.png"), np.vstack(vis_ref_color))
 
     # compute all loss
     reconstruction_loss = mean_on_mask(diff_img, valid_mask)
