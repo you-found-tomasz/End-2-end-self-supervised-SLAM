@@ -13,7 +13,8 @@ import numpy as np
 import math
 
 # TODO: Use for Debug
-PRINT_REPROJECTION_IMAGES_PATH ='./reproj_vis' #None
+PRINT_REPROJECTION_IMAGES_PATH = None
+# PRINT_REPROJECTION_IMAGES_PATH ='./reproj_vis' #None
 #PRINT_REPROJECTION_IMAGES_PATH = '/home/matthias/data/reproj_vis'
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")

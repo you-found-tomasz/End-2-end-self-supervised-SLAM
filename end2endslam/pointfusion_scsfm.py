@@ -331,8 +331,10 @@ if __name__ == "__main__":
                 pred = input_dict["pred_depths"][0][:,0,:,:]
                 validation_errors = compute_errors(pred,gt)
                 #test
-                print("Validation errors:",validation_errors)
-                
+                print("Validation errors:", validation_errors)
+                # for tensorboard
+                loss_dict["val_abs_diff"] = torch.tensor(validation_errors[0])
+                loss_dict["val_abs_rel"] = torch.tensor(validation_errors[1])
 
                 # Log
                 if log:
