@@ -231,6 +231,8 @@ if __name__ == "__main__":
 
     writer = SummaryWriter()
     model_path = os.path.join(args.debug_path, args.model_name)
+    if not os.path.exists(model_path):
+        os.makedirs(model_path)
 
     # Training
     epochs = 50
