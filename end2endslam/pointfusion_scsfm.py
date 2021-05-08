@@ -15,6 +15,7 @@ from gradslam.structures.pointclouds import Pointclouds
 
 from end2endslam.scsfmwrapper import SCSfmWrapper
 from losses.unified_loss import pred_loss_unified
+from losses.gt_loss import compute_errors #validation
 
 from torch.optim import Adam
 from torch.utils.tensorboard import SummaryWriter
@@ -255,7 +256,7 @@ if __name__ == "__main__":
 
             # Scale intrinsics since SLAM works on downsampled images
             intrinsics_slam = intrinsics.clone().detach()
-            intrinsics_slam[:, :, 0, :] = intrinsics_slam[:, :, 0, :] * SLAM_HEIGHT / DEPTH_PRED_HEIGHT
+            intrinsics_slam[:, :, 0, :] = intrinsics_slam[:, :, 0, :] * SLAM_WIDTH / DEPTH_PRED_WIDTH
             intrinsics_slam[:, :, 1, :] = intrinsics_slam[:, :, 1, :] * SLAM_HEIGHT / DEPTH_PRED_HEIGHT
             # Intrinsics are already scaled in TUM dataloader!
             intrinsics_depth = intrinsics.clone().detach()
@@ -322,6 +323,16 @@ if __name__ == "__main__":
                 loss.backward()
                 optim.step()
                 print("Epoch: {}, Batch_idx: {}.{} / Loss : {:.4f}".format(e_idx, batch_idx, pred_index, loss))
+
+                # validation (TODO)
+                # compute various errors by comparing gt to the biggest scale prediction
+                # error_names = ['abs_diff', 'abs_rel', 'sq_rel', 'a1', 'a2', 'a3']
+                gt = input_dict["depth"][:,0,:,:]
+                pred = input_dict["pred_depths"][0][:,0,:,:]
+                validation_errors = compute_errors(pred,gt)
+                #test
+                print("Validation errors:",validation_errors)
+                
 
                 # Log
                 if log:
