@@ -36,8 +36,8 @@ args=['--dataset', 'tum', '--dataset_path', '/home/matthias/git/End-2-end-self-s
 
 """
 # TODO: Use for Debug
-USE_GT_DEPTH = False
-VISUALIZE_SLAM = False
+USE_GT_DEPTH = True
+VISUALIZE_SLAM = True
 
 parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
 parser.add_argument(
@@ -138,6 +138,12 @@ parser.add_argument(
     type=int,
     default=1
 )
+parser.add_argument(
+    "--learning_rate",
+    type=float,
+    default=1e-6
+)
+
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
@@ -210,7 +216,7 @@ if __name__ == "__main__":
         pretrained=True,
         pretrained_path=PRETRAINED_DISPNET_PATH,
         resnet_layers = RESNET_LAYERS)
-    optim = Adam(depth_net.parameters(), lr = 1e-6)
+    optim = Adam(depth_net.parameters(), lr = args.learning_rate)
 
     # load dataset
     if args.dataset == "tum":
@@ -241,11 +247,16 @@ if __name__ == "__main__":
     for e_idx in range(epochs):
         # TODO: remove gt depth dependency
         #for batch_idx, (colors, depths, intrinsics, poses, *_) in enumerate(loader):
-        for batch_idx, (colors, depths, intrinsics, gt_poses, *_) in enumerate(loader):
+        for batch_idx, (colors, depths, intrinsics, *rest) in enumerate(loader):
             colors = colors.to(device)
             depths = depths.to(device)
             intrinsics = intrinsics.to(device)
-            gt_poses = gt_poses.to(device)
+
+            # TODO: make NYU data loader return dummy gt poses
+            if args.dataset == 'tum':
+                gt_poses = rest[0].to(device)
+            else:
+                gt_poses = torch.eye(4, device=device).view(1, 4, 4).repeat(args.batch_size, args.seq_length, 1, 1)
 
             # Hard coded
             batch_loss = {}
@@ -331,7 +342,7 @@ if __name__ == "__main__":
                 # error_names = ['abs_diff', 'abs_rel', 'sq_rel', 'a1', 'a2', 'a3']
                 gt = input_dict["depth"][:,0,:,:]
                 pred = input_dict["pred_depths"][0][:,0,:,:]
-                validation_errors = compute_errors(pred,gt)
+                validation_errors = compute_errors(pred, gt, args.dataset)
                 #test
                 print("Validation errors:", validation_errors)
                 # for tensorboard
@@ -341,6 +352,8 @@ if __name__ == "__main__":
                 # Log
                 if log:
                     print("Logging depths images to {}".format(model_path))
+                    mpl.pyplot.imsave("{}/{}_{}_color.jpg".format(model_path, e_idx, batch_idx),
+                                      40 * np.vstack(input_dict["rgb"].detach().cpu().squeeze().cpu().numpy()))
                     # Depth Vis
                     mpl.pyplot.imsave("{}/{}_{}_gt.jpg".format(model_path, e_idx, batch_idx),
                                40 * np.vstack(input_dict["depth"].detach().cpu().squeeze().cpu().numpy()))
