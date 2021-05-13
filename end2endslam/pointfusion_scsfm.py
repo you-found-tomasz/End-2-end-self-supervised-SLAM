@@ -36,7 +36,7 @@ args=['--dataset', 'tum', '--dataset_path', '/home/matthias/git/End-2-end-self-s
 
 """
 # TODO: Use for Debug
-USE_GT_DEPTH = True
+USE_GT_DEPTH = False #also disables training
 VISUALIZE_SLAM = True
 
 parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
@@ -91,6 +91,25 @@ parser.add_argument(
     default=10,
     help="SLAM Sequence Length"
 )
+parser.add_argument(
+    "--seq_dilation",
+    type=int,
+    default=None,
+    help="SLAM Sequence Dilation (n frames to skip)"
+)
+parser.add_argument(
+    "--seq_stride",
+    type=int,
+    default=None,
+    help="SLAM Sequence Stride"
+)
+parser.add_argument(
+    "--seq_start",
+    type=int,
+    default=None,
+    help="SLAM Sequence Start frame"
+)
+
 parser.add_argument(
     "--batch_size",
     type=int,
@@ -224,7 +243,8 @@ if __name__ == "__main__":
         height = DEPTH_PRED_HEIGHT#256 #640/2
         width = int(np.ceil(ORIG_WIDTH*(DEPTH_PRED_HEIGHT/ORIG_HEIGHT))) #342 #ceil(480/2)
         cropped_width = DEPTH_PRED_WIDTH #320 #crop hotizontally (equal margin at both sides)
-        dataset = TUM(args.dataset_path, seqlen=args.seq_length, height=height, width=width, cropped_width=cropped_width, sequences=None)
+        dataset = TUM(args.dataset_path, seqlen=args.seq_length, height=height, width=width, cropped_width=cropped_width, sequences=args.sequences,
+                      dilation=args.seq_dilation,stride = args.seq_stride,start = args.seq_start)
     elif args.dataset == "nyu":
         # right now only working with rectified pictures as provided by SfM-github
         dataset = NYU(args.dataset_path, version="rectified", seqlen=args.seq_length, height=DEPTH_PRED_HEIGHT, width=DEPTH_PRED_WIDTH, sequences=None)
@@ -299,7 +319,7 @@ if __name__ == "__main__":
                 # TODO: seems inefficient, could also store previous depth prediction
                 depth_predictions = depth_net(input_dict["rgb"])
                 input_dict["pred_depths_ref"] = depth_net(input_dict["rgb_ref"])
-                input_dict["pred_depths"] = depth_net(input_dict["rgb"])
+                input_dict["pred_depths"] = depth_predictions #depth_net(input_dict["rgb"])
 
                 #TODO: use it to test with gt depth
                 if USE_GT_DEPTH:
@@ -333,8 +353,9 @@ if __name__ == "__main__":
                 # compute loss, backprop, and optimize (depth consistency loss is computed every frame of sequence)
                 loss_dict = pred_loss_unified(args, input_dict, slam, pointclouds, live_frame)
                 loss = loss_dict["com"]
-                loss.backward()
-                optim.step()
+                if not USE_GT_DEPTH:
+                    loss.backward()
+                    optim.step()
                 print("Epoch: {}, Batch_idx: {}.{} / Loss : {:.4f}".format(e_idx, batch_idx, pred_index, loss))
 
                 # validation (TODO)
@@ -352,8 +373,9 @@ if __name__ == "__main__":
                 # Log
                 if log:
                     print("Logging depths images to {}".format(model_path))
+                    #print("shape",np.vstack(input_dict["rgb"].detach().cpu().permute(0, 2, 3, 1).squeeze().numpy()).shape)
                     mpl.pyplot.imsave("{}/{}_{}_color.jpg".format(model_path, e_idx, batch_idx),
-                                      40 * np.vstack(input_dict["rgb"].detach().cpu().squeeze().cpu().numpy()))
+                                      1.0 * np.vstack(input_dict["rgb"].detach().cpu().permute(0, 2, 3, 1).squeeze().numpy()))
                     # Depth Vis
                     mpl.pyplot.imsave("{}/{}_{}_gt.jpg".format(model_path, e_idx, batch_idx),
                                40 * np.vstack(input_dict["depth"].detach().cpu().squeeze().cpu().numpy()))

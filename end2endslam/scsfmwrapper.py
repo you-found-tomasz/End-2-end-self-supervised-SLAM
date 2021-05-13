@@ -61,6 +61,8 @@ class SCSfmWrapper(nn.Module):
 
         # Multi scale
         disp = outputs # multiscale
+        if not self.disp_net.training:
+            disp = [disp]
         depth_list = []
         for single_disp in disp:
             single_depth = 1 / single_disp

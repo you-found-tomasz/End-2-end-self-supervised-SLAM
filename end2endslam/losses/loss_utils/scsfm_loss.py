@@ -13,8 +13,8 @@ import numpy as np
 import math
 
 # TODO: Use for Debug
-PRINT_REPROJECTION_IMAGES_PATH = None
-# PRINT_REPROJECTION_IMAGES_PATH ='./reproj_vis' #None
+#PRINT_REPROJECTION_IMAGES_PATH = None
+PRINT_REPROJECTION_IMAGES_PATH =  None #'./reproj_vis' #None
 #PRINT_REPROJECTION_IMAGES_PATH = '/home/matthias/data/reproj_vis'
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -59,8 +59,11 @@ compute_ssim_loss = SSIM().to(device)
 
 # photometric loss
 # geometry consistency loss
-def compute_photo_and_geometry_loss(tgt_img, ref_imgs, intrinsics, tgt_depth, ref_depths, poses, poses_inv, max_scales, with_ssim, with_mask, with_auto_mask, padding_mode):
-
+def compute_photo_and_geometry_loss(tgt_img, ref_imgs, intrinsics, tgt_depth, ref_depths, poses, poses_inv, max_scales, with_ssim, with_mask, with_auto_mask, padding_mode,warped_res=None):
+    """ Added warped_res dict which will be filled with the results, for debugging 
+    Args:
+        warped_res [dict]: will be filled with the results, for debugging. Should pass reference of dict (empty or not)
+    """
     photo_loss = 0
     geometry_loss = 0
 
@@ -94,7 +97,7 @@ def compute_photo_and_geometry_loss(tgt_img, ref_imgs, intrinsics, tgt_depth, re
                 ref_depth_scaled = F.interpolate(ref_depth[s], (h, w), mode='nearest')
 
             photo_loss1, geometry_loss1 = compute_pairwise_loss(tgt_img_scaled, ref_img_scaled, tgt_depth_scaled, ref_depth_scaled, pose,
-                                                            intrinsic_scaled, with_ssim, with_mask, with_auto_mask, padding_mode)
+                                                            intrinsic_scaled, with_ssim, with_mask, with_auto_mask, padding_mode,debug=True,warped_res=warped_res)
 
             photo_loss2, geometry_loss2 = compute_pairwise_loss(ref_img_scaled, tgt_img_scaled, ref_depth_scaled, tgt_depth_scaled, pose_inv,
                                                                    intrinsic_scaled, with_ssim, with_mask, with_auto_mask, padding_mode)
@@ -105,7 +108,7 @@ def compute_photo_and_geometry_loss(tgt_img, ref_imgs, intrinsics, tgt_depth, re
     return photo_loss, geometry_loss
 
 
-def compute_pairwise_loss(tgt_img, ref_img, tgt_depth, ref_depth, pose, intrinsic, with_ssim, with_mask, with_auto_mask, padding_mode):
+def compute_pairwise_loss(tgt_img, ref_img, tgt_depth, ref_depth, pose, intrinsic, with_ssim, with_mask, with_auto_mask, padding_mode,debug=False,warped_res=None):
 
     ref_img_warped, valid_mask, projected_depth, computed_depth = inverse_warp2(ref_img, tgt_depth, ref_depth, pose, intrinsic, padding_mode)
 
@@ -126,7 +129,7 @@ def compute_pairwise_loss(tgt_img, ref_img, tgt_depth, ref_depth, pose, intrinsi
         diff_img = diff_img * weight_mask
     """
     # TODO: Logging, Handle this better!"""
-    if PRINT_REPROJECTION_IMAGES_PATH:
+    if PRINT_REPROJECTION_IMAGES_PATH and debug:
         # Original Color Vis
         vis_orig_color = ref_img.permute(0, 2, 3, 1).detach().cpu().numpy()
         imageio.imwrite(os.path.join(PRINT_REPROJECTION_IMAGES_PATH, "color_ref.png"), np.vstack(vis_orig_color))
@@ -136,6 +139,11 @@ def compute_pairwise_loss(tgt_img, ref_img, tgt_depth, ref_depth, pose, intrinsi
         # Ref Color vis
         vis_ref_color = tgt_img.permute(0, 2, 3, 1).detach().cpu().numpy()
         imageio.imwrite(os.path.join(PRINT_REPROJECTION_IMAGES_PATH, "color_target.png"), np.vstack(vis_ref_color))
+
+    if debug and warped_res is not None:
+        warped_res['color_ref'] = ref_img.permute(0, 2, 3, 1).detach().cpu()#.numpy()
+        warped_res['color_ref_warped'] = ref_img_warped.permute(0, 2, 3, 1).detach().cpu()#.numpy()
+        warped_res['color_target'] = tgt_img.permute(0, 2, 3, 1).detach().cpu()#.numpy()
 
     # compute all loss
     reconstruction_loss = mean_on_mask(diff_img, valid_mask)

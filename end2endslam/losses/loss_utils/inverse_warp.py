@@ -251,8 +251,13 @@ def inverse_warp2(img, depth, ref_depth, pose, intrinsics, padding_mode='zeros')
     check_sizes(depth, 'depth', 'B1HW')
     check_sizes(ref_depth, 'ref_depth', 'B1HW')
     # TODO: changed
-    #check_sizes(pose, 'pose', 'B6')
-    check_sizes(pose, 'pose', 'B34')
+    try:
+        check_sizes(pose, 'pose', 'B34')
+        b6_poses = False
+    except:
+        check_sizes(pose, 'pose', 'B6')
+        b6_poses = True
+
     check_sizes(intrinsics, 'intrinsics', 'B33')
 
     batch_size, _, img_height, img_width = img.size()
@@ -260,8 +265,10 @@ def inverse_warp2(img, depth, ref_depth, pose, intrinsics, padding_mode='zeros')
     cam_coords = pixel2cam(depth.squeeze(1), intrinsics.inverse())  # [B,3,H,W]
 
     # TODO: changed this
-    # pose_mat = pose_vec2mat(pose)  # [B,3,4]
-    pose_mat = pose
+    if b6_poses:
+        pose_mat = pose_vec2mat(pose)  # [B,3,4]
+    else:
+        pose_mat = pose
 
     # Get projection matrix for tgt camera frame to source pixel frame
     proj_cam_to_src_pixel = intrinsics @ pose_mat  # [B, 3, 4]
