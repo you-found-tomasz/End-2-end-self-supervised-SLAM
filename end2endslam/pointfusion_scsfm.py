@@ -37,6 +37,7 @@ Example Args:
 # TODO: Use for Debug
 USE_GT_DEPTH = False #also disables training
 VISUALIZE_SLAM = False
+EVAL_VALIDATION = True # slowing training down a bit, computes validation loss in eval mode
 
 parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
 parser.add_argument(
@@ -405,17 +406,31 @@ if __name__ == "__main__":
                     optim.step()
                 print("Epoch: {}, Batch_idx: {}.{} / Loss : {:.4f}".format(e_idx, batch_idx, pred_index, loss))
 
-                # validation (TODO)
+                # Validation in train mode(TODO)
                 # compute various errors by comparing gt to the biggest scale prediction
                 # error_names = ['abs_diff', 'abs_rel', 'sq_rel', 'a1', 'a2', 'a3']
                 gt = input_dict["depth"][:,0,:,:]
                 pred = input_dict["pred_depths"][0][:,0,:,:]
                 validation_errors = compute_errors(pred, gt, args.dataset)
-                #test
                 print("Validation errors:", validation_errors)
                 # for tensorboard
                 loss_dict["val_abs_diff"] = torch.tensor(validation_errors[0])
                 loss_dict["val_abs_rel"] = torch.tensor(validation_errors[1])
+
+                # Validation in eval mode
+                if EVAL_VALIDATION:
+                    depth_net.disp_net.eval()
+                    input_dict["pred_depths_eval"] = depth_net(input_dict["rgb"])
+                    gt_eval = input_dict["depth"][:,0,:,:]
+                    pred_eval = input_dict["pred_depths_eval"][0][:,0,:,:]
+                    validation_errors_eval = compute_errors(pred_eval, gt_eval, args.dataset)
+                    print("Validation errors eval:", validation_errors_eval)
+                    # for tensorboard
+                    loss_dict["val_abs_diff_eval"] = torch.tensor(validation_errors_eval[0])
+                    loss_dict["val_abs_rel_eval"] = torch.tensor(validation_errors_eval[1])
+                    # set back to train mode
+                    depth_net.disp_net.train()
+
 
                 # Log
                 if log:
@@ -430,6 +445,10 @@ if __name__ == "__main__":
                     mpl.pyplot.imsave("{}/{}_{}_pred.jpg".format(model_path, e_idx, batch_idx),
                                np.vstack(input_dict["pred_depths"][0].detach().squeeze().cpu().numpy()),
                                       vmin=vmin_vis, vmax=vmax_vis)
+                    if EVAL_VALIDATION:
+                        mpl.pyplot.imsave("{}/{}_{}_pred_eval.jpg".format(model_path, e_idx, batch_idx),
+                                          np.vstack(input_dict["pred_depths_eval"][0].detach().squeeze().cpu().numpy()),
+                                          vmin=vmin_vis, vmax=vmax_vis)
 
                 # Tensorboard
                 for loss_type in loss_dict.keys():
