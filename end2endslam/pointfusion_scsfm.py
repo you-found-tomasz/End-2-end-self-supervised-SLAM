@@ -109,6 +109,12 @@ parser.add_argument(
     default=None,
     help="SLAM Sequence Start frame"
 )
+parser.add_argument(
+    "--seq_end",
+    type=int,
+    default=None,
+    help="SLAM Sequence End frame"
+)
 
 parser.add_argument(
     "--batch_size",
@@ -244,7 +250,7 @@ if __name__ == "__main__":
         width = int(np.ceil(ORIG_WIDTH*(DEPTH_PRED_HEIGHT/ORIG_HEIGHT))) #342 #ceil(480/2)
         cropped_width = DEPTH_PRED_WIDTH #320 #crop hotizontally (equal margin at both sides)
         dataset = TUM(args.dataset_path, seqlen=args.seq_length, height=height, width=width, cropped_width=cropped_width, sequences=args.sequences,
-                      dilation=args.seq_dilation,stride = args.seq_stride,start = args.seq_start)
+                      dilation=args.seq_dilation,stride = args.seq_stride,start = args.seq_start, end = args.seq_end)
     elif args.dataset == "nyu":
         # right now only working with rectified pictures as provided by SfM-github
         dataset = NYU(args.dataset_path, version="rectified", seqlen=args.seq_length, height=DEPTH_PRED_HEIGHT, width=DEPTH_PRED_WIDTH, sequences=None)
