@@ -26,18 +26,17 @@ import imageio
 """r Example run commands:
 
 (leave TUM folder structure unchanged):
-
-runfile('/home/matthias/git/End-2-end-self-supervised-SLAM/end2endslam/pointfusion_scsfm.py', 
-args=['--dataset', 'tum', '--dataset_path', '/home/matthias/git/End-2-end-self-supervised-SLAM/sample_data/dataset_TUM', 
-'--odometry', 'icp', '--seq_length', '10', '--batch_size', '8', '--debug_path', '/home/matthias/data/3dv_debug/', 
-'--loss_photo_factor', '1', '--loss_geom_factor', '0.5', '--loss_smooth_factor', '0.1', '--loss_cons_factor', '0.0', 
-'--loss_gt_factor', '0.0', '--log_freq', '1'], wdir='/home/matthias/git/End-2-end-self-supervised-SLAM/end2endslam')
-
+Example Args: 
+--dataset tum --dataset_path "/home/matthias/git/End-2-end-self-supervised-SLAM/sample_data/dataset_TUM_desk" 
+--debug_path "/home/matthias/data/3dv_debug/" --model_name tum_desk_subset_test
+--odometry gt --seq_length 10 --batch_size 5 --seq_start 396 --seq_end 488 --seq_stride 12 --seq_dilation 3
+--loss_photo_factor 1 --loss_geom_factor 0.5 --loss_smooth_factor 0.1 --loss_cons_factor 0 --loss_gt_factor 0
+--log_freq 1 --max_scale 4
 
 """
 # TODO: Use for Debug
 USE_GT_DEPTH = False #also disables training
-VISUALIZE_SLAM = True
+VISUALIZE_SLAM = False
 
 parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
 parser.add_argument(
@@ -285,7 +284,7 @@ if __name__ == "__main__":
         # right now only working with rectified pictures as provided by SfM-github
         dataset = NYU(args.dataset_path, version="rectified", seqlen=args.seq_length, height=DEPTH_PRED_HEIGHT, width=DEPTH_PRED_WIDTH, sequences=None)
     elif args.dataset == "nyu-regular":
-        # NOT SUPPORTET YET!!!
+        # NOT SUPPORTED YET!!!
         dataset = NYU(args.dataset_path, version="regular", seqlen=args.seq_length, height=DEPTH_PRED_HEIGHT, width=DEPTH_PRED_WIDTH, sequences=None)
 
     # get data
@@ -356,16 +355,18 @@ if __name__ == "__main__":
                 input_dict["intrinsic_slam"] = intrinsics_slam
                 input_dict["intrinsic_depth"] = intrinsics_depth
 
+                # scale depth (only in very first iteration)
+                if scale_coeff is None or vmax_vis is None or vmin_vis is None:
+                    depth_predictions = depth_net(input_dict["rgb"])
+                    input_dict["pred_depths"] = depth_predictions
+                    scale_coeff, vmin_vis, vmax_vis = compute_scaling_coef(args, input_dict)
+                    depth_net.scale_coeff = scale_coeff
+
                 # predict depth
                 # TODO: seems inefficient, could also store previous depth prediction
                 depth_predictions = depth_net(input_dict["rgb"])
                 input_dict["pred_depths_ref"] = depth_net(input_dict["rgb_ref"])
                 input_dict["pred_depths"] = depth_predictions #depth_net(input_dict["rgb"])
-
-                # scale depth (only in very first iteration)
-                if scale_coeff is None or vmax_vis is None or vmin_vis is None:
-                    scale_coeff, vmin_vis, vmax_vis = compute_scaling_coef(args, input_dict)
-                    depth_net.scale_coeff = scale_coeff
 
                 #TODO: use it to test with gt depth
                 if USE_GT_DEPTH:
