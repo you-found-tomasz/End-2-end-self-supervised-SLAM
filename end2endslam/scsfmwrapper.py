@@ -33,6 +33,7 @@ class SCSfmWrapper(nn.Module):
         """
         super(SCSfmWrapper, self).__init__()
         self.device = device
+        self.scale_coeff = 1
 
         #Create depth prediction network and load pretrained weights
         self.disp_net = DispResNet(resnet_layers, False)#.to(device)
@@ -65,7 +66,7 @@ class SCSfmWrapper(nn.Module):
             disp = [disp]
         depth_list = []
         for single_disp in disp:
-            single_depth = 1 / single_disp
+            single_depth = 1 / single_disp * self.scale_coeff
             depth_list.append(single_depth)
 
         # Old: Single scale

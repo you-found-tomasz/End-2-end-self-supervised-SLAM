@@ -196,6 +196,36 @@ MODEL_FILE = "models/r18_rectified_nyu/dispnet_model_best.pth.tar"
 PRETRAINED_DISPNET_PATH = os.path.join(CURR_DIR, MODEL_FILE)
 RESNET_LAYERS = 18
 
+def compute_scaling_coef(args, input_dict):
+    if args.dataset == 'tum':
+        stacked_pred_depth = np.vstack(input_dict["pred_depths"][0].detach().cpu().squeeze().numpy())
+        # Ignoring zero (unknown) depth values in gt
+        stacked_gt_depth = np.vstack(input_dict["depth"].detach().cpu().squeeze().numpy())
+        stacked_gt_depth[stacked_gt_depth == 0] = np.nan
+
+        gt_min = np.nanmin(stacked_gt_depth)
+        gt_max = np.nanmax(stacked_gt_depth)
+        gt_mean = np.nanmean(stacked_gt_depth)
+        gt_median = np.nanmedian(stacked_gt_depth)
+        gt_std = np.nanstd(stacked_gt_depth)
+        pred_min = np.min(stacked_pred_depth)
+        pred_max = np.max(stacked_pred_depth)
+        pred_mean = np.mean(stacked_pred_depth)
+        pred_median = np.median(stacked_pred_depth)
+        pred_std = np.std(stacked_pred_depth)
+
+        scaling_coeff = gt_median / pred_median
+        print("Scaling coefficient: {}".format(scaling_coeff))
+        print("Mean (gt, pred): {}, {}".format(gt_mean, pred_mean))
+        print("Median (gt, pred): {}, {}".format(gt_median, pred_median))
+        print("Min (gt, pred): {}, {}".format(gt_min, pred_min))
+        print("Max (gt, pred): {}, {}".format(gt_max, pred_max))
+        print("Std (gt, pred): {}, {}".format(gt_std, pred_std))
+
+    else:
+        scaling_coeff = 1
+
+    return scaling_coeff, pred_min*scaling_coeff, pred_max*scaling_coeff
 
 def slam_step(input_dict, slam, pointclouds, prev_frame, device, args):
     """ Perform SLAM step
@@ -267,9 +297,14 @@ if __name__ == "__main__":
         os.makedirs(model_path)
 
     # Training
-    epochs = 50
+    epochs = 500
     losses = []
     counter = {"every": 0, "batch": 0, "detailed": 0}
+
+    scale_coeff = None
+    vmin_vis = None
+    vmax_vis = None
+
     for e_idx in range(epochs):
         # TODO: remove gt depth dependency
         #for batch_idx, (colors, depths, intrinsics, poses, *_) in enumerate(loader):
@@ -327,6 +362,11 @@ if __name__ == "__main__":
                 input_dict["pred_depths_ref"] = depth_net(input_dict["rgb_ref"])
                 input_dict["pred_depths"] = depth_predictions #depth_net(input_dict["rgb"])
 
+                # scale depth (only in very first iteration)
+                if scale_coeff is None or vmax_vis is None or vmin_vis is None:
+                    scale_coeff, vmin_vis, vmax_vis = compute_scaling_coef(args, input_dict)
+                    depth_net.scale_coeff = scale_coeff
+
                 #TODO: use it to test with gt depth
                 if USE_GT_DEPTH:
                     print("WARNING: USING GT DEPTH")
@@ -379,14 +419,16 @@ if __name__ == "__main__":
                 # Log
                 if log:
                     print("Logging depths images to {}".format(model_path))
-                    #print("shape",np.vstack(input_dict["rgb"].detach().cpu().permute(0, 2, 3, 1).squeeze().numpy()).shape)
+                    # Color Vis
                     mpl.pyplot.imsave("{}/{}_{}_color.jpg".format(model_path, e_idx, batch_idx),
                                       1.0 * np.vstack(input_dict["rgb"].detach().cpu().permute(0, 2, 3, 1).squeeze().numpy()))
                     # Depth Vis
                     mpl.pyplot.imsave("{}/{}_{}_gt.jpg".format(model_path, e_idx, batch_idx),
-                               40 * np.vstack(input_dict["depth"].detach().cpu().squeeze().cpu().numpy()))
+                               np.vstack(input_dict["depth"].detach().cpu().squeeze().cpu().numpy()),
+                                      vmin=vmin_vis, vmax=vmax_vis)
                     mpl.pyplot.imsave("{}/{}_{}_pred.jpg".format(model_path, e_idx, batch_idx),
-                               40 * np.vstack(input_dict["pred_depths"][0].detach().squeeze().cpu().numpy()))
+                               np.vstack(input_dict["pred_depths"][0].detach().squeeze().cpu().numpy()),
+                                      vmin=vmin_vis, vmax=vmax_vis)
 
                 # Tensorboard
                 for loss_type in loss_dict.keys():
