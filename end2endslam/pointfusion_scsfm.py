@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 
 import numpy as np
 import os
+import json
 import cv2 as cv
 import open3d as o3d # TODO: remove
 from gradslam.structures.rgbdimages import RGBDImages
@@ -295,6 +296,10 @@ if __name__ == "__main__":
     model_path = os.path.join(args.debug_path, args.model_name)
     if not os.path.exists(model_path):
         os.makedirs(model_path)
+    # log args
+    args_path = os.path.join(model_path, "args_{}.txt".format(args.model_name))
+    with open(args_path, 'w') as file:
+        file.write(json.dumps(vars(args)))
 
     # Training
     epochs = 500
@@ -340,7 +345,8 @@ if __name__ == "__main__":
                 depth_net.zero_grad()
 
                 # Logging?
-                if batch_idx % args.log_freq == 0 and pred_index == args.seq_length - 1 and not args.debug_path is None:
+                # if batch_idx % args.log_freq == 0 and pred_index == args.seq_length - 1 and not args.debug_path is None:
+                if e_idx % args.log_freq == 0 and batch_idx == 0 and pred_index == args.seq_length - 1 and not args.debug_path is None:
                     log = True
                 else:
                     log = False
@@ -449,6 +455,9 @@ if __name__ == "__main__":
                         mpl.pyplot.imsave("{}/{}_{}_pred_eval.jpg".format(model_path, e_idx, batch_idx),
                                           np.vstack(input_dict["pred_depths_eval"][0].detach().squeeze().cpu().numpy()),
                                           vmin=vmin_vis, vmax=vmax_vis)
+                    model_save_path = os.path.join(model_path, "{}_{}".format(args.model_name, e_idx))
+                    print("Saving model to {}".format(model_save_path))
+                    depth_net.save_model(model_save_path, e_idx, loss_dict)
 
                 # Tensorboard
                 for loss_type in loss_dict.keys():
@@ -467,6 +476,7 @@ if __name__ == "__main__":
 
             counter["batch"] +=1
             pred_depths = torch.cat(pred_depths, dim= 1)
+
 
 
 
