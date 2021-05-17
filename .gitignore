@@ -157,3 +157,6 @@ runs/
 # data
 sample_data/dataset_NYU/*/
 sample_data/dataset_TUM/*/
+
+#log files
+*.BARAK
