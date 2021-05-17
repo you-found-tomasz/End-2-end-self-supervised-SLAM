@@ -76,6 +76,14 @@ class SCSfmWrapper(nn.Module):
 
         return depth_list
 
+    def save_model(self, save_path, epoch, loss):
+        torch.save({
+            'epoch': epoch,
+            'state_dict': self.disp_net.state_dict(),
+            'loss': loss
+        }, save_path)
+
+
     
 
 

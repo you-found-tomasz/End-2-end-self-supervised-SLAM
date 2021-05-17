@@ -5,13 +5,15 @@ from torch.utils.data import DataLoader
 
 import numpy as np
 import os
+import json
 import cv2 as cv
-import open3d as o3d # TODO: remove
+#import open3d as o3d # TODO: remove
 from gradslam.structures.rgbdimages import RGBDImages
 from end2endslam.dataloader.tum import TUM
 from end2endslam.dataloader.nyu import NYU
 from gradslam.slam.pointfusion import PointFusion
 from gradslam.structures.pointclouds import Pointclouds
+from end2endslam.pointfusion_scsfm_utils import compute_scaling_coef, slam_step
 
 from end2endslam.scsfmwrapper import SCSfmWrapper
 from losses.unified_loss import pred_loss_unified
@@ -38,7 +40,7 @@ runfile('/home/matthias/gitExample Args:
 # TODO: Use for Debug
 USE_GT_DEPTH = False #also disables training
 VISUALIZE_SLAM = False
-EVAL_VALIDATION = True # slowing training down a bit, computes validation loss in eval mode
+EVAL_VALIDATION = False # slowing training down a bit, computes validation loss in eval mode
 
 parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
 parser.add_argument(
@@ -197,68 +199,7 @@ MODEL_FILE = "models/r18_rectified_nyu/dispnet_model_best.pth.tar"
 PRETRAINED_DISPNET_PATH = os.path.join(CURR_DIR, MODEL_FILE)
 RESNET_LAYERS = 18
 
-def compute_scaling_coef(args, input_dict):
-    if args.dataset == 'tum':
-        stacked_pred_depth = np.vstack(input_dict["pred_depths"][0].detach().cpu().squeeze().numpy())
-        # Ignoring zero (unknown) depth values in gt
-        stacked_gt_depth = np.vstack(input_dict["depth"].detach().cpu().squeeze().numpy())
-        stacked_gt_depth[stacked_gt_depth == 0] = np.nan
 
-        gt_min = np.nanmin(stacked_gt_depth)
-        gt_max = np.nanmax(stacked_gt_depth)
-        gt_mean = np.nanmean(stacked_gt_depth)
-        gt_median = np.nanmedian(stacked_gt_depth)
-        gt_std = np.nanstd(stacked_gt_depth)
-        pred_min = np.min(stacked_pred_depth)
-        pred_max = np.max(stacked_pred_depth)
-        pred_mean = np.mean(stacked_pred_depth)
-        pred_median = np.median(stacked_pred_depth)
-        pred_std = np.std(stacked_pred_depth)
-
-        scaling_coeff = gt_median / pred_median
-        print("Scaling coefficient: {}".format(scaling_coeff))
-        print("Mean (gt, pred): {}, {}".format(gt_mean, pred_mean))
-        print("Median (gt, pred): {}, {}".format(gt_median, pred_median))
-        print("Min (gt, pred): {}, {}".format(gt_min, pred_min))
-        print("Max (gt, pred): {}, {}".format(gt_max, pred_max))
-        print("Std (gt, pred): {}, {}".format(gt_std, pred_std))
-
-    else:
-        scaling_coeff = 1
-
-    return scaling_coeff, pred_min*scaling_coeff, pred_max*scaling_coeff
-
-def slam_step(input_dict, slam, pointclouds, prev_frame, device, args):
-    """ Perform SLAM step
-    """
-    # get inputs
-    intrinsics = input_dict["intrinsic_slam"]
-    colors = input_dict["rgb_slam"]
-    # pass identity as poses (important for first frame, dummy for rest)
-    if args.odometry == "gt":
-        poses = input_dict["gt_poses"]
-    else:
-        poses = torch.eye(4, device=device).view(1, 4, 4).repeat(colors.shape[0], 1, 1)
-    pred_depths = input_dict["pred_depths_slam"]
-
-    # added artificial sequence length dimension and then don't use it (stupid but necessary)
-    # permute since slam does NOT support channels_first = True
-    colors_u = torch.unsqueeze(colors, 1).permute(0, 1, 3, 4, 2)
-    pred_depths_u = torch.unsqueeze(pred_depths, 1).permute(0, 1, 3, 4, 2)
-    poses_u = torch.unsqueeze(poses, 1)
-
-    # SLAM
-    rgbdimages = RGBDImages(colors_u, pred_depths_u, intrinsics, poses_u, channels_first=False, device=device)
-    live_frame = rgbdimages[:, 0]
-    pointclouds, live_frame.poses = slam.step(pointclouds, live_frame, prev_frame)
-
-    # Compute relative poses for reprojection
-    if prev_frame == None:
-        relative_pose = live_frame.poses
-    else:
-        relative_pose = torch.matmul(torch.inverse(prev_frame.poses), live_frame.poses)
-
-    return slam, pointclouds, live_frame, relative_pose
 
 
 if __name__ == "__main__":
@@ -295,6 +236,10 @@ if __name__ == "__main__":
     model_path = os.path.join(args.debug_path, args.model_name)
     if not os.path.exists(model_path):
         os.makedirs(model_path)
+    # log args
+    args_path = os.path.join(model_path, "args.txt")
+    with open(args_path, 'w') as file:
+        file.write(json.dumps(vars(args)))
 
     # Training
     epochs = 500
@@ -340,7 +285,8 @@ if __name__ == "__main__":
                 depth_net.zero_grad()
 
                 # Logging?
-                if batch_idx % args.log_freq == 0 and pred_index == args.seq_length - 1 and not args.debug_path is None:
+                # if batch_idx % args.log_freq == 0 and pred_index == args.seq_length - 1 and not args.debug_path is None:
+                if e_idx % args.log_freq == 0 and batch_idx == 0 and pred_index == args.seq_length - 1 and not args.debug_path is None:
                     log = True
                 else:
                     log = False
@@ -449,3 +395,28 @@ if __name__ == "__main__":
                         mpl.pyplot.imsave("{}/{}_{}_pred_eval.jpg".format(model_path, e_idx, batch_idx),
                                           np.vstack(input_dict["pred_depths_eval"][0].detach().squeeze().cpu().numpy()),
                                           vmin=vmin_vis, vmax=vmax_vis)
+                    model_save_path = os.path.join(model_path, "model_epoch_{}".format(e_idx))
+                    print("Saving model to {}".format(model_save_path))
+                    depth_net.save_model(model_save_path, e_idx, loss_dict)
+
+                # Tensorboard
+                for loss_type in loss_dict.keys():
+                    writer.add_scalar("Perstep_loss/_{}".format(loss_type), loss_dict[loss_type].item(), counter["every"])
+                    if not loss_type in batch_loss.keys():
+                        batch_loss[loss_type] = loss_dict[loss_type].item() * 0.1
+                    else:
+                        batch_loss[loss_type] += loss_dict[loss_type].item() * 0.1
+
+                counter["every"] += 1
+
+                pred_depths.append(input_dict["pred_depths"][0].permute(0, 2, 3, 1).unsqueeze(1))
+
+            for loss_type in loss_dict.keys():
+                writer.add_scalar("Batchwise_loss/_{}".format(loss_type), batch_loss[loss_type], counter["batch"])
+
+            counter["batch"] +=1
+            pred_depths = torch.cat(pred_depths, dim= 1)
+
+
+
+
