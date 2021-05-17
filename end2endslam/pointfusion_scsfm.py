@@ -26,7 +26,8 @@ import imageio
 """r Example run commands:
 
 (leave TUM folder structure unchanged):
-Example Args: 
+
+runfile('/home/matthias/gitExample Args: 
 --dataset tum --dataset_path "/home/matthias/git/End-2-end-self-supervised-SLAM/sample_data/dataset_TUM_desk" 
 --debug_path "/home/matthias/data/3dv_debug/" --model_name tum_desk_subset_test
 --odometry gt --seq_length 10 --batch_size 5 --seq_start 396 --seq_end 488 --seq_stride 12 --seq_dilation 3
@@ -260,7 +261,6 @@ def slam_step(input_dict, slam, pointclouds, prev_frame, device, args):
     return slam, pointclouds, live_frame, relative_pose
 
 
-
 if __name__ == "__main__":
     # select device
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -449,24 +449,3 @@ if __name__ == "__main__":
                         mpl.pyplot.imsave("{}/{}_{}_pred_eval.jpg".format(model_path, e_idx, batch_idx),
                                           np.vstack(input_dict["pred_depths_eval"][0].detach().squeeze().cpu().numpy()),
                                           vmin=vmin_vis, vmax=vmax_vis)
-
-                # Tensorboard
-                for loss_type in loss_dict.keys():
-                    writer.add_scalar("Perstep_loss/_{}".format(loss_type), loss_dict[loss_type].item(), counter["every"])
-                    if not loss_type in batch_loss.keys():
-                        batch_loss[loss_type] = loss_dict[loss_type].item() * 0.1
-                    else:
-                        batch_loss[loss_type] += loss_dict[loss_type].item() * 0.1
-
-                counter["every"] += 1
-
-                pred_depths.append(input_dict["pred_depths"][0].permute(0, 2, 3, 1).unsqueeze(1))
-
-            for loss_type in loss_dict.keys():
-                writer.add_scalar("Batchwise_loss/_{}".format(loss_type), batch_loss[loss_type], counter["batch"])
-
-            counter["batch"] +=1
-            pred_depths = torch.cat(pred_depths, dim= 1)
-
-
-
