@@ -109,7 +109,8 @@ def main():
             seed=args.seed,
             train=True,
             sequence_length=args.sequence_length,
-            dataset=args.dataset
+            dataset=args.dataset,
+            skip_frames=100
         )
     else:
         train_set = PairFolder(
@@ -135,7 +136,8 @@ def main():
             seed=args.seed,
             train=False,
             sequence_length=args.sequence_length,
-            dataset=args.dataset
+            dataset=args.dataset,
+            skip_frames=100
         )
     print('{} samples found in {} train scenes'.format(len(train_set), len(train_set.scenes)))
     print('{} samples found in {} valid scenes'.format(len(val_set), len(val_set.scenes)))
@@ -411,7 +413,8 @@ def validate_with_gt(args, val_loader, disp_net, epoch, logger, output_writers=[
             b, h, w = depth.size()
             output_depth = torch.nn.functional.interpolate(output_depth.unsqueeze(1), [h, w]).squeeze(1)
 
-        errors.update(compute_errors(depth, output_depth, args.dataset))
+        #errors.update(compute_errors(depth, output_depth, args.dataset))
+        errors.update(compute_errors(depth, output_depth, 'nyu'))
 
         # measure elapsed time
         batch_time.update(time.time() - end)
