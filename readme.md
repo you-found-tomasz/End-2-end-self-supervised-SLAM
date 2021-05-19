@@ -59,24 +59,23 @@ Execute in the main folder
 ```
 
 TUM:
-bash script for downloading TUM execute in sample_data/data_TUM folder (to add more download files update the raw_data_downloader_TUM.sh file)
+bash script for downloading TUM execute in sample_data/dataset_TUM folder (to add more download files update the raw_data_downloader_TUM.sh file)
 ```shell
-bash raw_data_downloader_TUM.sh 
+bash raw_data_downloader_TUM_freiburg2.sh 
+```
+Run multiple trainings on GPU via example_commands.sh bash file:
+```shell
+bash example_commands.sh
+```
+Run on CPU, need to navigate to the end2endslam folder (with the -Is option you see interactively, good to check whether it works)
+
+```shell
+bsub -R "rusage[mem=8192]" -Is "python pointfusion_scsfm.py --dataset tum --dataset_path ../sample_data/dataset_TUM --odometry gt --sequences rgbd_dataset_freiburg2_xyz --seq_length 10 --batch_size 5 --debug_path ../debug_folder --model_name 001_xyz_short_previous_scale1 --loss_photo_factor 1 --loss_geom_factor 0.5 --loss_smooth_factor 0.1 --loss_cons_factor 0 --loss_gt_factor 0 --log_freq 30 --max_scale 1 --seq_dilation 100 --max_num_batches 2 --seq_start 1 --seq_end 2002 --num_epochs 300 --projection_mode previous"
 ```
 
-Run on CPU, need to navigate to the pointfusion folder (with the -Is option you see interectively, good to check whether it works)
-
+Run on GPU, need to navigate to the end2end folder
 ```shell
-running pointfusion from the pointfusion folder:
-bsub -R "rusage[mem=8192]" -Is "python pointfusion_scsfm_brucker.py --dataset tum --dataset_path "../../sample_data/dataset_TUM/" --odometry icp --loss depth_consistency"
-
-running pointfusion from the main folder:
-bsub -R "rusage[mem=8192]" -Is "python pointfusion_scsfm_brucker.py --dataset tum --dataset_path "/sample_data/dataset_TUM/" --odometry icp --loss depth_consistency"
-```
-
-Run on GPU, need to navigate to the pointfusion folder
-```shell
-bsub -Is -R "rusage[mem=8096, ngpus_excl_p=1]" "python pointfusion_scsfm_brucker.py --dataset tum --dataset_path "../../sample_data/dataset_TUM/" --odometry icp --loss depth_consistency"
+bsub -Is -R "rusage[mem=8096, ngpus_excl_p=1]" "python pointfusion_scsfm.py --dataset tum --dataset_path ../sample_data/dataset_TUM --odometry gt --sequences rgbd_dataset_freiburg2_xyz --seq_length 10 --batch_size 5 --debug_path ../debug_folder --model_name 001_xyz_short_previous_scale1 --loss_photo_factor 1 --loss_geom_factor 0.5 --loss_smooth_factor 0.1 --loss_cons_factor 0 --loss_gt_factor 0 --log_freq 30 --max_scale 1 --seq_dilation 100 --max_num_batches 2 --seq_start 1 --seq_end 2002 --num_epochs 300 --projection_mode previous"
 ```
 
 Good tutorials for further info:
