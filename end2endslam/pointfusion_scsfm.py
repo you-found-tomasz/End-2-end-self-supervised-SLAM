@@ -4,6 +4,7 @@ import torch
 from torch.utils.data import DataLoader
 
 import numpy as np
+import csv
 import os
 import json
 import cv2 as cv
@@ -74,7 +75,7 @@ parser.add_argument(
     type=str,
     default=None,
     help="Path to .txt file containing sequences. \n"
-    " If it doesn't work for TUM, leave option out, it then takes all sequences in dataset_path"
+    "Single sequence name, filepath to sequences.txt or None"
 )
 parser.add_argument(
     "--debug_path",
@@ -142,6 +143,13 @@ parser.add_argument(
     type=int,
     default=10,
     help="Frequency for logging"
+)
+parser.add_argument(
+    "--projection_mode",
+    type=str,
+    default="previous",
+    choices=["previous", "first"],
+    help="Pairwise or wrt. first image in sequence"
 )
 parser.add_argument(
     "--loss_photo_factor",
@@ -229,10 +237,18 @@ if __name__ == "__main__":
     # load dataset
     if args.dataset == "tum":
         #need to have images in 320x256 size as input to sc-sfml net. Thus first we rescale by 1.875, then crop horizontally
+        if os.path.exists(args.sequences):
+            # path to sequences.txt file
+            sequences = args.sequences
+        elif args.sequences is not None:
+            # pass single sequence as tuple
+            sequences = (args.sequences,)
+        else:
+            sequences = None
         height = DEPTH_PRED_HEIGHT#256 #640/2
         width = int(np.ceil(ORIG_WIDTH*(DEPTH_PRED_HEIGHT/ORIG_HEIGHT))) #342 #ceil(480/2)
         cropped_width = DEPTH_PRED_WIDTH #320 #crop hotizontally (equal margin at both sides)
-        dataset = TUM(args.dataset_path, seqlen=args.seq_length, height=height, width=width, cropped_width=cropped_width, sequences=args.sequences,
+        dataset = TUM(args.dataset_path, seqlen=args.seq_length, height=height, width=width, cropped_width=cropped_width, sequences=sequences,
                       dilation=args.seq_dilation,stride = args.seq_stride,start = args.seq_start, end = args.seq_end)
     elif args.dataset == "nyu":
         # right now only working with rectified pictures as provided by SfM-github
@@ -244,7 +260,7 @@ if __name__ == "__main__":
     # get data
     loader = DataLoader(dataset=dataset, batch_size=args.batch_size, shuffle=False )
 
-    writer = SummaryWriter()
+    writer = SummaryWriter(comment=args.model_name)
     model_path = os.path.join(args.debug_path, args.model_name)
     if not os.path.exists(model_path):
         os.makedirs(model_path)
@@ -254,18 +270,26 @@ if __name__ == "__main__":
         file.write(json.dumps(vars(args)))
 
     # Training
-    epochs = 500
+    epochs = args.num_epochs
     losses = []
     counter = {"every": 0, "batch": 0, "detailed": 0}
+    log_summary = []
 
     scale_coeff = None
     vmin_vis = None
     vmax_vis = None
 
+    current_iter = 0
+
     for e_idx in range(epochs):
         # TODO: remove gt depth dependency
         #for batch_idx, (colors, depths, intrinsics, poses, *_) in enumerate(loader):
         for batch_idx, (colors, depths, intrinsics, *rest) in enumerate(loader):
+            # Stop training after maximum number of batches
+            if batch_idx >= args.max_num_batches:
+                continue
+            current_iter += 1
+
             colors = colors.to(device)
             depths = depths.to(device)
             intrinsics = intrinsics.to(device)
@@ -303,14 +327,23 @@ if __name__ == "__main__":
                 else:
                     log = False
 
+                # projection mode:
+                if args.projection_mode == "previous":
+                    ref_index = pred_index - 1
+                elif args.projection_mode == "first":
+                    ref_index = 0
+                else:
+                    ref_index = pred_index - 1
+
                 # get input tensors
                 input_dict = {"device": device}
                 input_dict["rgb"] = (colors[:, pred_index, ::] / 255.0).permute(0, 3, 1, 2)
-                input_dict["rgb_ref"] = (colors[:, pred_index - 1, ::] / 255.0).permute(0, 3, 1, 2)
+                input_dict["rgb_ref"] = (colors[:, ref_index, ::] / 255.0).permute(0, 3, 1, 2)
 
                 input_dict["depth"] = depths[:, pred_index, ::].permute(0, 3, 1, 2)
-                input_dict["depth_ref"] = depths[:, pred_index - 1, ::].permute(0, 3, 1, 2)
+                input_dict["depth_ref"] = depths[:, ref_index, ::].permute(0, 3, 1, 2)
                 input_dict["gt_poses"] = gt_poses[:, pred_index, ::]
+                input_dict["gt_poses_ref"] = gt_poses[:, ref_index, ::]
                 input_dict["intrinsic_slam"] = intrinsics_slam
                 input_dict["intrinsic_depth"] = intrinsics_depth
 
@@ -346,11 +379,18 @@ if __name__ == "__main__":
 
                 # SLAM to update poses
                 slam, pointclouds, live_frame, relative_poses = slam_step(input_dict, slam, pointclouds, live_frame, device, args)
-                input_dict["pose"] = relative_poses.detach()
+
+                # relative poses depend on projection mode
+                if args.projection_mode == "previous":
+                    input_dict["pose"] = relative_poses.detach()
+                elif args.projection_mode == "first":
+                    input_dict["pose"] = torch.matmul(torch.inverse(input_dict["gt_poses_ref"]), input_dict["gt_poses"]).unsqueeze(1)
+
                 # TODO: use it to visualize SLAM
                 if VISUALIZE_SLAM:
                     # SLAM Vis
-                    o3d.visualization.draw_geometries([pointclouds.open3d(0)])
+                    # o3d.visualization.draw_geometries([pointclouds.open3d(0)])
+                    True
 
                 # First frame: SLAM only, for pose, no backpropagation since we don't have poses / reference frame
                 if pred_index == 0:
@@ -415,9 +455,9 @@ if __name__ == "__main__":
                 for loss_type in loss_dict.keys():
                     writer.add_scalar("Perstep_loss/_{}".format(loss_type), loss_dict[loss_type].item(), counter["every"])
                     if not loss_type in batch_loss.keys():
-                        batch_loss[loss_type] = loss_dict[loss_type].item() * 0.1
+                        batch_loss[loss_type] = loss_dict[loss_type].item() * 1 / args.seq_length
                     else:
-                        batch_loss[loss_type] += loss_dict[loss_type].item() * 0.1
+                        batch_loss[loss_type] += loss_dict[loss_type].item() * 1 / args.seq_length
 
                 counter["every"] += 1
 
@@ -426,8 +466,26 @@ if __name__ == "__main__":
             for loss_type in loss_dict.keys():
                 writer.add_scalar("Batchwise_loss/_{}".format(loss_type), batch_loss[loss_type], counter["batch"])
 
+            # Log training progress
+            batch_loss["run"] = args.model_name
+            batch_loss["epoch"] = e_idx
+            batch_loss["batch"] = batch_idx
+            batch_loss["iteration"] = current_iter
+            log_summary.append(batch_loss)
+
             counter["batch"] +=1
             pred_depths = torch.cat(pred_depths, dim= 1)
+
+    # Saving training summary
+    keys = log_summary[0].keys()
+    with open(os.path.join(model_path, "training_summary.csv"), 'w', newline='') as output_file:
+        dict_writer = csv.DictWriter(output_file, keys)
+        dict_writer.writeheader()
+        dict_writer.writerows(log_summary)
+
+    writer.flush()
+    print("Training done, info logged to {}/training_summary.csv".format(model_path))
+
 
 
 
