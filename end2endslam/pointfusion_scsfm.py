@@ -122,7 +122,19 @@ parser.add_argument(
     "--batch_size",
     type=int,
     default=8,
-    help="SLAM Sequence Length"
+    help="Batch size"
+)
+parser.add_argument(
+    "--max_num_batches",
+    type=int,
+    default=10,
+    help="Maximum number of batches to be run per epoch"
+)
+parser.add_argument(
+    "--num_epochs",
+    type=int,
+    default=100,
+    help="Number of epochs"
 )
 parser.add_argument(
     "--log_freq",
