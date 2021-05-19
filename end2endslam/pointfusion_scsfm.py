@@ -28,7 +28,8 @@ import imageio
 """r Example run commands:
 
 (leave TUM folder structure unchanged):
-Example Args: 
+
+runfile('/home/matthias/gitExample Args: 
 --dataset tum --dataset_path "/home/matthias/git/End-2-end-self-supervised-SLAM/sample_data/dataset_TUM_desk" 
 --debug_path "/home/matthias/data/3dv_debug/" --model_name tum_desk_subset_test
 --odometry gt --seq_length 10 --batch_size 5 --seq_start 396 --seq_end 488 --seq_stride 12 --seq_dilation 3
@@ -209,7 +210,6 @@ CURR_DIR = os.path.dirname(os.path.realpath(__file__))
 MODEL_FILE = "models/r18_rectified_nyu/dispnet_model_best.pth.tar"
 PRETRAINED_DISPNET_PATH = os.path.join(CURR_DIR, MODEL_FILE)
 RESNET_LAYERS = 18
-
 
 
 
