@@ -1,7 +1,10 @@
 #!/bin/bash
 
+#freiburg1
 files=(rgbd_dataset_freiburg1_rpy.tgz
+rgbd_dataset_freiburg1_xyz.tgz
 )
+
 
 for i in ${files[@]}; do
                 fullname=$i

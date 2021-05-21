@@ -152,3 +152,14 @@ runs/
 .idea
 
 *.png
+
+
+# data
+sample_data/dataset_NYU/*/
+sample_data/dataset_TUM/*/
+
+# debug
+debug_folder/*
+
+#log files
+*.BARAK

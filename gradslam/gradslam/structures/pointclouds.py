@@ -1,6 +1,10 @@
 from typing import List, Optional, Union
 
-#import open3d as o3d
+try:
+    import open3d as o3d
+except:
+    print("Warning: cannot import open3d package. This is expected on cluster")
+
 import plotly.graph_objects as go
 import torch
 
