@@ -302,6 +302,7 @@ if __name__ == "__main__":
 
             # Hard coded
             batch_loss = {}
+            batch_val = {}
             pred_depths = []
 
             # Initialize SLAM and pointclouds
@@ -412,8 +413,16 @@ if __name__ == "__main__":
                 validation_errors = compute_errors(pred, gt, args.dataset)
                 print("Validation errors:", validation_errors)
                 # for tensorboard
+                #for backward compatibility...
                 loss_dict["val_abs_diff"] = torch.tensor(validation_errors[0])
                 loss_dict["val_abs_rel"] = torch.tensor(validation_errors[1])
+                val_dict =  {}
+                val_dict["val_abs_diff"] = torch.tensor(validation_errors[0])
+                val_dict["val_abs_rel"] = torch.tensor(validation_errors[1])
+                val_dict["val_sq_rel"] = torch.tensor(validation_errors[2])
+                val_dict["val_a1"] = torch.tensor(validation_errors[3])
+                val_dict["val_a2"] = torch.tensor(validation_errors[4])
+                val_dict["val_a3"] = torch.tensor(validation_errors[5])
 
                 # Validation in eval mode
                 if EVAL_VALIDATION:
@@ -426,6 +435,13 @@ if __name__ == "__main__":
                     # for tensorboard
                     loss_dict["val_abs_diff_eval"] = torch.tensor(validation_errors_eval[0])
                     loss_dict["val_abs_rel_eval"] = torch.tensor(validation_errors_eval[1])
+
+                    val_dict["val_abs_diff_eval"] = torch.tensor(validation_errors_eval[0])
+                    val_dict["val_abs_rel_eval"] = torch.tensor(validation_errors_eval[1])
+                    val_dict["val_sq_rel_eval"] = torch.tensor(validation_errors_eval[2])
+                    val_dict["val_a1_eval"] = torch.tensor(validation_errors_eval[3])
+                    val_dict["val_a2_eval"] = torch.tensor(validation_errors_eval[4])
+                    val_dict["val_a3_eval"] = torch.tensor(validation_errors_eval[5])
                     # set back to train mode
                     depth_net.disp_net.train()
 
@@ -458,6 +474,13 @@ if __name__ == "__main__":
                         batch_loss[loss_type] = loss_dict[loss_type].item() * 1 / args.seq_length
                     else:
                         batch_loss[loss_type] += loss_dict[loss_type].item() * 1 / args.seq_length
+                # validation
+                for val_type in val_dict.keys():
+                    writer.add_scalar("Perstep_validation/_{}".format(val_type), val_dict[val_type].item(), counter["every"])
+                    if not val_type in batch_val.keys():
+                        batch_val[val_type] = val_dict[val_type].item() * 1 / args.seq_length
+                    else:
+                        batch_val[val_type] += val_dict[val_type].item() * 1 / args.seq_length
 
                 counter["every"] += 1
 
@@ -465,13 +488,21 @@ if __name__ == "__main__":
 
             for loss_type in loss_dict.keys():
                 writer.add_scalar("Batchwise_loss/_{}".format(loss_type), batch_loss[loss_type], counter["batch"])
+            for val_type in val_dict.keys():
+                writer.add_scalar("Batchwise_validation/_{}".format(val_type), batch_val[val_type], counter["batch"])
 
             # Log training progress
+            
+            #add validation scores
+            batch_loss = {**batch_loss,**batch_val}
+
             batch_loss["run"] = args.model_name
             batch_loss["epoch"] = e_idx
             batch_loss["batch"] = batch_idx
             batch_loss["iteration"] = current_iter
+
             log_summary.append(batch_loss)
+            #log_summary[-1] = {**log_summary[-1],**batch_val}
 
             counter["batch"] +=1
             pred_depths = torch.cat(pred_depths, dim= 1)
