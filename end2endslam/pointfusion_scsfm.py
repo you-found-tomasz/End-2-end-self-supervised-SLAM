@@ -19,6 +19,7 @@ from end2endslam.pointfusion_scsfm_utils import compute_scaling_coef, slam_step
 from end2endslam.scsfmwrapper import SCSfmWrapper
 from losses.unified_loss import pred_loss_unified
 from losses.gt_loss import compute_errors #validation
+from losses.pose_loss import pose_loss_unified
 
 from torch.optim import Adam
 from torch.utils.tensorboard import SummaryWriter
@@ -65,11 +66,22 @@ parser.add_argument(
     type=str,
     default="gradicp",
     choices=["gt", "icp", "gradicp"],
-    help="Odometry method to use. Supported options:\n"
+    help="Odometry method used by slam. Supported options:\n"
     " gt = Ground Truth odometry\n"
     " icp = Iterative Closest Point\n"
     " gradicp (*default) = Differentiable Iterative Closest Point\n",
 )
+
+parser.add_argument(
+    "--train_odometry",
+    type=str,
+    default="gt",
+    choices=["gt", "slam"],
+    help="Odometry method used by for training. Supported options:\n"
+    " gt = Ground Truth odometry (default)\n"
+    " slam = Poses from slam, which uses whichever method specified by --odometry\n"
+)
+
 parser.add_argument(
     "--sequences",
     type=str,
@@ -177,6 +189,17 @@ parser.add_argument(
     default=1.0
 )
 parser.add_argument(
+    "--loss_pose_rot_factor",
+    type=float,
+    default=0.0
+)
+parser.add_argument(
+    "--loss_pose_trans_factor",
+    type=float,
+    default=0.0
+)
+
+parser.add_argument(
     "--seed",
     type=int,
     default=123
@@ -245,8 +268,8 @@ if __name__ == "__main__":
             sequences = (args.sequences,)
         else:
             sequences = None
-        height = DEPTH_PRED_HEIGHT#256 #640/2
-        width = int(np.ceil(ORIG_WIDTH*(DEPTH_PRED_HEIGHT/ORIG_HEIGHT))) #342 #ceil(480/2)
+        height = DEPTH_PRED_HEIGHT#256 #480/2
+        width = int(np.ceil(ORIG_WIDTH*(DEPTH_PRED_HEIGHT/ORIG_HEIGHT))) #342 #ceil(640/2)
         cropped_width = DEPTH_PRED_WIDTH #320 #crop hotizontally (equal margin at both sides)
         dataset = TUM(args.dataset_path, seqlen=args.seq_length, height=height, width=width, cropped_width=cropped_width, sequences=sequences,
                       dilation=args.seq_dilation,stride = args.seq_stride,start = args.seq_start, end = args.seq_end)
@@ -381,11 +404,21 @@ if __name__ == "__main__":
                 # SLAM to update poses
                 slam, pointclouds, live_frame, relative_poses = slam_step(input_dict, slam, pointclouds, live_frame, device, args)
 
-                # relative poses depend on projection mode
+                # compute relative gt and slam poses between reference frame and pose
+                
+                input_dict["gt_rel_poses"] = torch.matmul(torch.inverse(input_dict["gt_poses_ref"]), input_dict["gt_poses"]).unsqueeze(1) 
                 if args.projection_mode == "previous":
-                    input_dict["pose"] = relative_poses.detach()
+                    input_dict["slam_rel_poses"] = relative_poses
                 elif args.projection_mode == "first":
+                    input_dict["slam_rel_poses"] = live_frame.poses
+
+                # choose between using gt poses or slam poses for reprojection
+                if args.train_odometry == "slam":
+                    input_dict["pose"] = input_dict["slam_rel_poses"].detach()
+                elif args.train_odometry == "gt":
+                    #take relative gt pose between 
                     input_dict["pose"] = torch.matmul(torch.inverse(input_dict["gt_poses_ref"]), input_dict["gt_poses"]).unsqueeze(1)
+                else: raise ValueError("invalid --train_odometry argument")
 
                 # TODO: use it to visualize SLAM
                 if VISUALIZE_SLAM:
@@ -401,7 +434,9 @@ if __name__ == "__main__":
                 loss_dict = pred_loss_unified(args, input_dict, slam, pointclouds, live_frame)
                 loss = loss_dict["com"]
                 if not USE_GT_DEPTH:
-                    loss.backward()
+                    #loss.backward()
+                    #torch.autograd.set_detect_anomaly(True)
+                    loss.backward() #retain_graph=True)
                     optim.step()
                 print("Epoch: {}, Batch_idx: {}.{} / Loss : {:.4f}".format(e_idx, batch_idx, pred_index, loss))
 
