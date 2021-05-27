@@ -21,7 +21,7 @@ from losses.unified_loss import pred_loss_unified
 from losses.gt_loss import compute_errors #validation
 from losses.pose_loss import pose_loss_unified
 
-from torch.optim import Adam
+from torch.optim import Adam,SGD
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib as mpl
 import matplotlib.cm as cm
@@ -215,6 +215,13 @@ parser.add_argument(
     default=1e-6
 )
 
+parser.add_argument(
+    "--optimizer",
+    type=str,
+    default="adam",
+    choices=["adam", "sgd"],
+)
+
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
@@ -255,7 +262,13 @@ if __name__ == "__main__":
         pretrained=True,
         pretrained_path=PRETRAINED_DISPNET_PATH,
         resnet_layers = RESNET_LAYERS)
-    optim = Adam(depth_net.parameters(), lr = args.learning_rate)
+    
+    # Inizialize optimizer
+    if args.optimizer == "adam":
+        optim = Adam(depth_net.parameters(), lr = args.learning_rate)
+    elif args.optimizer == "sgd":
+        optim = SGD(depth_net.parameters(), lr = args.learning_rate,momentum=0,nesterov=False)
+
 
     # load dataset
     if args.dataset == "tum":
@@ -414,7 +427,7 @@ if __name__ == "__main__":
 
                 # choose between using gt poses or slam poses for reprojection
                 if args.train_odometry == "slam":
-                    input_dict["pose"] = input_dict["slam_rel_poses"].detach()
+                    input_dict["pose"] = input_dict["slam_rel_poses"] #.detach()
                 elif args.train_odometry == "gt":
                     #take relative gt pose between 
                     input_dict["pose"] = torch.matmul(torch.inverse(input_dict["gt_poses_ref"]), input_dict["gt_poses"]).unsqueeze(1)
