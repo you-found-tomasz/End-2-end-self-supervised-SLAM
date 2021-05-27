@@ -19,6 +19,7 @@ from end2endslam.pointfusion_scsfm_utils import compute_scaling_coef, slam_step
 from end2endslam.scsfmwrapper import SCSfmWrapper
 from losses.unified_loss import pred_loss_unified
 from losses.gt_loss import compute_errors #validation
+from losses.pose_loss import pose_loss_unified
 
 from torch.optim import Adam
 from torch.utils.tensorboard import SummaryWriter
@@ -65,11 +66,22 @@ parser.add_argument(
     type=str,
     default="gradicp",
     choices=["gt", "icp", "gradicp"],
-    help="Odometry method to use. Supported options:\n"
+    help="Odometry method used by slam. Supported options:\n"
     " gt = Ground Truth odometry\n"
     " icp = Iterative Closest Point\n"
     " gradicp (*default) = Differentiable Iterative Closest Point\n",
 )
+
+parser.add_argument(
+    "--train_odometry",
+    type=str,
+    default="gt",
+    choices=["gt", "slam"],
+    help="Odometry method used by for training. Supported options:\n"
+    " gt = Ground Truth odometry (default)\n"
+    " slam = Poses from slam, which uses whichever method specified by --odometry\n"
+)
+
 parser.add_argument(
     "--sequences",
     type=str,
@@ -177,6 +189,17 @@ parser.add_argument(
     default=1.0
 )
 parser.add_argument(
+    "--loss_pose_rot_factor",
+    type=float,
+    default=0.0
+)
+parser.add_argument(
+    "--loss_pose_trans_factor",
+    type=float,
+    default=0.0
+)
+
+parser.add_argument(
     "--seed",
     type=int,
     default=123
@@ -245,8 +268,8 @@ if __name__ == "__main__":
             sequences = (args.sequences,)
         else:
             sequences = None
-        height = DEPTH_PRED_HEIGHT#256 #640/2
-        width = int(np.ceil(ORIG_WIDTH*(DEPTH_PRED_HEIGHT/ORIG_HEIGHT))) #342 #ceil(480/2)
+        height = DEPTH_PRED_HEIGHT#256 #480/2
+        width = int(np.ceil(ORIG_WIDTH*(DEPTH_PRED_HEIGHT/ORIG_HEIGHT))) #342 #ceil(640/2)
         cropped_width = DEPTH_PRED_WIDTH #320 #crop hotizontally (equal margin at both sides)
         dataset = TUM(args.dataset_path, seqlen=args.seq_length, height=height, width=width, cropped_width=cropped_width, sequences=sequences,
                       dilation=args.seq_dilation,stride = args.seq_stride,start = args.seq_start, end = args.seq_end)
@@ -302,6 +325,7 @@ if __name__ == "__main__":
 
             # Hard coded
             batch_loss = {}
+            batch_val = {}
             pred_depths = []
 
             # Initialize SLAM and pointclouds
@@ -380,11 +404,21 @@ if __name__ == "__main__":
                 # SLAM to update poses
                 slam, pointclouds, live_frame, relative_poses = slam_step(input_dict, slam, pointclouds, live_frame, device, args)
 
-                # relative poses depend on projection mode
+                # compute relative gt and slam poses between reference frame and pose
+                
+                input_dict["gt_rel_poses"] = torch.matmul(torch.inverse(input_dict["gt_poses_ref"]), input_dict["gt_poses"]).unsqueeze(1) 
                 if args.projection_mode == "previous":
-                    input_dict["pose"] = relative_poses.detach()
+                    input_dict["slam_rel_poses"] = relative_poses
                 elif args.projection_mode == "first":
+                    input_dict["slam_rel_poses"] = live_frame.poses
+
+                # choose between using gt poses or slam poses for reprojection
+                if args.train_odometry == "slam":
+                    input_dict["pose"] = input_dict["slam_rel_poses"].detach()
+                elif args.train_odometry == "gt":
+                    #take relative gt pose between 
                     input_dict["pose"] = torch.matmul(torch.inverse(input_dict["gt_poses_ref"]), input_dict["gt_poses"]).unsqueeze(1)
+                else: raise ValueError("invalid --train_odometry argument")
 
                 # TODO: use it to visualize SLAM
                 if VISUALIZE_SLAM:
@@ -400,7 +434,9 @@ if __name__ == "__main__":
                 loss_dict = pred_loss_unified(args, input_dict, slam, pointclouds, live_frame)
                 loss = loss_dict["com"]
                 if not USE_GT_DEPTH:
-                    loss.backward()
+                    #loss.backward()
+                    #torch.autograd.set_detect_anomaly(True)
+                    loss.backward() #retain_graph=True)
                     optim.step()
                 print("Epoch: {}, Batch_idx: {}.{} / Loss : {:.4f}".format(e_idx, batch_idx, pred_index, loss))
 
@@ -412,8 +448,16 @@ if __name__ == "__main__":
                 validation_errors = compute_errors(pred, gt, args.dataset)
                 print("Validation errors:", validation_errors)
                 # for tensorboard
+                #for backward compatibility...
                 loss_dict["val_abs_diff"] = torch.tensor(validation_errors[0])
                 loss_dict["val_abs_rel"] = torch.tensor(validation_errors[1])
+                val_dict =  {}
+                val_dict["val_abs_diff"] = torch.tensor(validation_errors[0])
+                val_dict["val_abs_rel"] = torch.tensor(validation_errors[1])
+                val_dict["val_sq_rel"] = torch.tensor(validation_errors[2])
+                val_dict["val_a1"] = torch.tensor(validation_errors[3])
+                val_dict["val_a2"] = torch.tensor(validation_errors[4])
+                val_dict["val_a3"] = torch.tensor(validation_errors[5])
 
                 # Validation in eval mode
                 if EVAL_VALIDATION:
@@ -426,6 +470,13 @@ if __name__ == "__main__":
                     # for tensorboard
                     loss_dict["val_abs_diff_eval"] = torch.tensor(validation_errors_eval[0])
                     loss_dict["val_abs_rel_eval"] = torch.tensor(validation_errors_eval[1])
+
+                    val_dict["val_abs_diff_eval"] = torch.tensor(validation_errors_eval[0])
+                    val_dict["val_abs_rel_eval"] = torch.tensor(validation_errors_eval[1])
+                    val_dict["val_sq_rel_eval"] = torch.tensor(validation_errors_eval[2])
+                    val_dict["val_a1_eval"] = torch.tensor(validation_errors_eval[3])
+                    val_dict["val_a2_eval"] = torch.tensor(validation_errors_eval[4])
+                    val_dict["val_a3_eval"] = torch.tensor(validation_errors_eval[5])
                     # set back to train mode
                     depth_net.disp_net.train()
 
@@ -458,6 +509,13 @@ if __name__ == "__main__":
                         batch_loss[loss_type] = loss_dict[loss_type].item() * 1 / args.seq_length
                     else:
                         batch_loss[loss_type] += loss_dict[loss_type].item() * 1 / args.seq_length
+                # validation
+                for val_type in val_dict.keys():
+                    writer.add_scalar("Perstep_validation/_{}".format(val_type), val_dict[val_type].item(), counter["every"])
+                    if not val_type in batch_val.keys():
+                        batch_val[val_type] = val_dict[val_type].item() * 1 / args.seq_length
+                    else:
+                        batch_val[val_type] += val_dict[val_type].item() * 1 / args.seq_length
 
                 counter["every"] += 1
 
@@ -465,13 +523,21 @@ if __name__ == "__main__":
 
             for loss_type in loss_dict.keys():
                 writer.add_scalar("Batchwise_loss/_{}".format(loss_type), batch_loss[loss_type], counter["batch"])
+            for val_type in val_dict.keys():
+                writer.add_scalar("Batchwise_validation/_{}".format(val_type), batch_val[val_type], counter["batch"])
 
             # Log training progress
+            
+            #add validation scores
+            batch_loss = {**batch_loss,**batch_val}
+
             batch_loss["run"] = args.model_name
             batch_loss["epoch"] = e_idx
             batch_loss["batch"] = batch_idx
             batch_loss["iteration"] = current_iter
+
             log_summary.append(batch_loss)
+            #log_summary[-1] = {**log_summary[-1],**batch_val}
 
             counter["batch"] +=1
             pred_depths = torch.cat(pred_depths, dim= 1)
