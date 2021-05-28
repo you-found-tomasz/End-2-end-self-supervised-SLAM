@@ -397,8 +397,8 @@ if __name__ == "__main__":
                 input_dict["pred_depths_ref"] = depth_net(input_dict["rgb_ref"])
                 input_dict["pred_depths"] = depth_predictions #depth_net(input_dict["rgb"])
 
-                input_dict["pred_depths_ref"][0] = input_dict["pred_depths_ref"][0].detach()
-                input_dict["pred_depths"][0] = input_dict["pred_depths"][0].detach()
+                #input_dict["pred_depths_ref"][0] = input_dict["pred_depths_ref"][0].detach()
+                #input_dict["pred_depths"][0] = input_dict["pred_depths"][0].detach()
 
                 #TODO: use it to test with gt depth
                 if USE_GT_DEPTH:
@@ -519,19 +519,20 @@ if __name__ == "__main__":
                     depth_net.save_model(model_save_path, e_idx, loss_dict)
 
                 # Tensorboard
+                eff_batch_size = colors.shape[0]
                 for loss_type in loss_dict.keys():
                     writer.add_scalar("Perstep_loss/_{}".format(loss_type), loss_dict[loss_type].item(), counter["every"])
                     if not loss_type in batch_loss.keys():
-                        batch_loss[loss_type] = loss_dict[loss_type].item() * 1 / args.seq_length
+                        batch_loss[loss_type] = loss_dict[loss_type].item() * 1 / args.seq_length #/ eff_batch_size
                     else:
-                        batch_loss[loss_type] += loss_dict[loss_type].item() * 1 / args.seq_length
+                        batch_loss[loss_type] += loss_dict[loss_type].item() * 1 / args.seq_length #/ eff_batch_size
                 # validation
                 for val_type in val_dict.keys():
                     writer.add_scalar("Perstep_validation/_{}".format(val_type), val_dict[val_type].item(), counter["every"])
                     if not val_type in batch_val.keys():
-                        batch_val[val_type] = val_dict[val_type].item() * 1 / args.seq_length
+                        batch_val[val_type] = val_dict[val_type].item() * 1 / args.seq_length #/ eff_batch_size
                     else:
-                        batch_val[val_type] += val_dict[val_type].item() * 1 / args.seq_length
+                        batch_val[val_type] += val_dict[val_type].item() * 1 / args.seq_length #/ eff_batch_size
 
                 counter["every"] += 1
 
