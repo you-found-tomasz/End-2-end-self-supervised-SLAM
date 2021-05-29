@@ -65,3 +65,20 @@ def slam_step(input_dict, slam, pointclouds, prev_frame, device, args):
         relative_pose = torch.matmul(torch.inverse(prev_frame.poses), live_frame.poses)
 
     return slam, pointclouds, live_frame, relative_pose
+
+def compute_relative_pose_magnitudes(rel_pose):
+    # rel_pose: Bx4x4 matrix
+    batch_size = rel_pose.shape[0]
+    mag_transl = 0
+    mag_rot = 0
+    for i in range(batch_size):
+        # translation
+        transl = rel_pose[i, 0:3, 3]
+        mag_transl += sum(transl*transl)**0.5
+        # rotation (via angle axis)
+        rot_mat = rel_pose[i, 0:3,0:3]
+        mag_rot += np.arccos((rot_mat[0,0] + rot_mat[1,1] + rot_mat[2,2] -1 )/2)
+    mag_rot = mag_rot / batch_size
+    mag_transl = mag_transl / batch_size
+    return mag_transl, mag_rot
+
