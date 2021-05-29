@@ -229,6 +229,15 @@ parser.add_argument(
     choices=["y", "n"]
 )
 
+parser.add_argument(
+    "--gradslam",
+    type=str,
+    default="y",
+    choices=["y", "n"],
+    help="Let gradients flow trough slam or not"
+    
+)
+
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
@@ -444,8 +453,6 @@ if __name__ == "__main__":
                 # Log difference in poses for analysis (TODO)
                 mag_transl, mag_rot = compute_relative_pose_magnitudes(input_dict["gt_rel_poses"].squeeze(1).detach().cpu().numpy())
 
-
-
                 if args.projection_mode == "previous":
                     input_dict["slam_rel_poses"] = relative_poses
                 elif args.projection_mode == "first":
@@ -454,6 +461,8 @@ if __name__ == "__main__":
                 # choose between using gt poses or slam poses for reprojection
                 if args.train_odometry == "slam":
                     input_dict["pose"] = input_dict["slam_rel_poses"] #.detach()
+                    if args.gradslam == "n":
+                        input_dict["pose"] = input_dict["slam_rel_poses"].detach()
                 elif args.train_odometry == "gt":
                     #take relative gt pose between 
                     input_dict["pose"] = torch.matmul(torch.inverse(input_dict["gt_poses_ref"]), input_dict["gt_poses"]).unsqueeze(1)
