@@ -222,6 +222,13 @@ parser.add_argument(
     choices=["adam", "sgd"],
 )
 
+parser.add_argument(
+    "--freeze",
+    type=str,
+    default="n",
+    choices=["y", "n"]
+)
+
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
@@ -262,12 +269,22 @@ if __name__ == "__main__":
         pretrained=True,
         pretrained_path=PRETRAINED_DISPNET_PATH,
         resnet_layers = RESNET_LAYERS)
+
+    if args.seq_stride == 0:
+        args.seq_stride = None
+
+    if args.freeze == "y":
+        print("Freezing weights from encoder | Decoder in training mode")
+        learnable_params = depth_net.disp_net.decoder.parameters()
+    else:
+        print("Complete Network in training mode")
+        learnable_params = depth_net.parameters()
     
     # Inizialize optimizer
     if args.optimizer == "adam":
-        optim = Adam(depth_net.parameters(), lr = args.learning_rate)
+        optim = Adam(learnable_params, lr = args.learning_rate)
     elif args.optimizer == "sgd":
-        optim = SGD(depth_net.parameters(), lr = args.learning_rate,momentum=0,nesterov=False)
+        optim = SGD(learnable_params, lr = args.learning_rate,momentum=0,nesterov=False)
 
 
     # load dataset
