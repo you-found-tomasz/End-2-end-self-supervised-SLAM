@@ -398,7 +398,7 @@ if __name__ == "__main__":
 
                 # Logging?
                 # if batch_idx % args.log_freq == 0 and pred_index == args.seq_length - 1 and not args.debug_path is None:
-                if e_idx % args.log_freq == 0 and batch_idx == 0 and pred_index == args.seq_length - 1 and not args.debug_path is None:
+                if (e_idx % args.log_freq == 0 or e_idx == epochs-1) and batch_idx == 0 and pred_index == args.seq_length - 1 and not args.debug_path is None:
                     log = True
                 else:
                     log = False
