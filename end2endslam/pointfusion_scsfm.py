@@ -311,7 +311,7 @@ if __name__ == "__main__":
     # get data
     loader = DataLoader(dataset=dataset, batch_size=args.batch_size, shuffle=False)
 
-    print("Data consists of Images {}, batches {}".format(len(dataset), len(loader)))
+    print("Data consists of Images {}, batches {}, Using {} with {} images".format(len(dataset), len(loader), args.max_num_batches, args.batch_size))
     if len(loader) < 1:
         print("No data")
         exit()
