@@ -466,7 +466,7 @@ if __name__ == "__main__":
                     True
 
                 # First frame: SLAM only, for pose, no backpropagation since we don't have poses / reference frame
-                slam_grad = args.loss_pose_rot_factor>0 or args.loss_pose_trans_factor #whether gradients are flowing trough slam
+                slam_grad = args.train_odometry == "slam" or args.loss_pose_rot_factor>0 or args.loss_pose_trans_factor #whether gradients are flowing trough slam
                 if pred_index == 0 or (slam_grad and pred_index<args.seq_length-1):
                     continue
 
