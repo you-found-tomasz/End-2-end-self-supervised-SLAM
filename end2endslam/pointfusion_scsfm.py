@@ -221,6 +221,12 @@ parser.add_argument(
     default="adam",
     choices=["adam", "sgd"],
 )
+parser.add_argument(
+    "--freeze",
+    type=str,
+    default="n",
+    choices=["y", "n"]
+)
 
 args = parser.parse_args()
 
@@ -250,8 +256,6 @@ PRETRAINED_DISPNET_PATH = os.path.join(CURR_DIR, MODEL_FILE)
 RESNET_LAYERS = 18
 
 
-
-
 if __name__ == "__main__":
     # select device
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -262,12 +266,23 @@ if __name__ == "__main__":
         pretrained=True,
         pretrained_path=PRETRAINED_DISPNET_PATH,
         resnet_layers = RESNET_LAYERS)
+
+    if args.seq_stride == 0:
+        args.seq_stride = None
+
+    if args.freeze == "y":
+        print("Freezing weights from encoder | Decoder in training mode")
+        learnable_params = depth_net.disp_net.decoder.parameters()
+    else:
+        print("Complete Network in training mode")
+        learnable_params = depth_net.parameters()
+
     
     # Inizialize optimizer
     if args.optimizer == "adam":
-        optim = Adam(depth_net.parameters(), lr = args.learning_rate)
+        optim = Adam(learnable_params, lr = args.learning_rate)
     elif args.optimizer == "sgd":
-        optim = SGD(depth_net.parameters(), lr = args.learning_rate,momentum=0,nesterov=False)
+        optim = SGD(learnable_params, lr = args.learning_rate,momentum=0,nesterov=False)
 
 
     # load dataset
@@ -285,7 +300,7 @@ if __name__ == "__main__":
         width = int(np.ceil(ORIG_WIDTH*(DEPTH_PRED_HEIGHT/ORIG_HEIGHT))) #342 #ceil(640/2)
         cropped_width = DEPTH_PRED_WIDTH #320 #crop hotizontally (equal margin at both sides)
         dataset = TUM(args.dataset_path, seqlen=args.seq_length, height=height, width=width, cropped_width=cropped_width, sequences=sequences,
-                      dilation=args.seq_dilation,stride = args.seq_stride,start = args.seq_start, end = args.seq_end)
+                      dilation=args.seq_dilation,stride = args.seq_stride, start = args.seq_start, end = args.seq_end)
     elif args.dataset == "nyu":
         # right now only working with rectified pictures as provided by SfM-github
         dataset = NYU(args.dataset_path, version="rectified", seqlen=args.seq_length, height=DEPTH_PRED_HEIGHT, width=DEPTH_PRED_WIDTH, sequences=None)
@@ -294,10 +309,18 @@ if __name__ == "__main__":
         dataset = NYU(args.dataset_path, version="regular", seqlen=args.seq_length, height=DEPTH_PRED_HEIGHT, width=DEPTH_PRED_WIDTH, sequences=None)
 
     # get data
-    loader = DataLoader(dataset=dataset, batch_size=args.batch_size, shuffle=False )
+    loader = DataLoader(dataset=dataset, batch_size=args.batch_size, shuffle=False)
 
-    writer = SummaryWriter(comment=args.model_name)
+    print("Data consists of Images {}, batches {}".format(len(dataset), len(loader)))
+    if len(loader) < 1:
+        print("No data")
+        exit()
+
     model_path = os.path.join(args.debug_path, args.model_name)
+    if not os.path.exists(model_path):
+        os.makedirs(model_path)
+    writer = SummaryWriter(model_path)
+
     if not os.path.exists(model_path):
         os.makedirs(model_path)
     # log args
@@ -335,6 +358,22 @@ if __name__ == "__main__":
                 gt_poses = rest[0].to(device)
             else:
                 gt_poses = torch.eye(4, device=device).view(1, 4, 4).repeat(args.batch_size, args.seq_length, 1, 1)
+
+            # Log Separate pass for batch average movement / can make it part of the main loop
+            xyz_movement = None
+            rot_movement = None
+            for i in range(0, args.seq_length -1):
+                T_rel = torch.matmul(torch.inverse(gt_poses[:, i]), gt_poses[:, i + 1]).unsqueeze(1)
+                if xyz_movement is None:
+                    xyz_movement = T_rel[:, 0, :3, -1].cpu().numpy()
+                else:
+                    xyz_movement = np.concatenate([xyz_movement, T_rel[:, 0, :3, -1].cpu().numpy()], axis = 0)
+                R_ = torch.eye(3).view([1, 3, 3]).to(device) - torch.matmul(torch.transpose(gt_poses[:, i, :3, :3], 1, 2), gt_poses[:, i+1, :3, :3])
+                if rot_movement is None:
+                    rot_movement = torch.tensor([torch.trace(i) for i in R_.squeeze(1)], device=device).cpu().numpy()
+                else:
+                    rot_movement = np.concatenate([rot_movement, torch.tensor([torch.trace(i) for i in R_.squeeze(1)], device=device).cpu().numpy()], axis = 0)
+
 
             # Hard coded
             batch_loss = {}
@@ -553,6 +592,9 @@ if __name__ == "__main__":
             batch_loss["epoch"] = e_idx
             batch_loss["batch"] = batch_idx
             batch_loss["iteration"] = current_iter
+            batch_loss["xy"] = np.linalg.norm(xyz_movement[:, :2], axis = -1, ord = 2).mean()
+            batch_loss["z"] = np.linalg.norm(xyz_movement[:, 2:], axis = -1, ord = 1).mean()
+            batch_loss["rot"] = np.linalg.norm(rot_movement, axis = -1, ord = 1).mean()
 
             log_summary.append(batch_loss)
             #log_summary[-1] = {**log_summary[-1],**batch_val}
