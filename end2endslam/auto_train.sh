@@ -1,5 +1,5 @@
 # path="/media/hamza/DATA/Data/tum"
-path="../sample_data/dataset_TUM"
+path="/cluster/project/infk/courses/3d_vision_21/group_25/TUM_original"
 debug_path="/cluster/project/infk/courses/3d_vision_21/group_25/debug_plozza/stride0_lr"
 stride=0
 batch=2
