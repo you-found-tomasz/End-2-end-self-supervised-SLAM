@@ -14,7 +14,7 @@ from end2endslam.dataloader.tum import TUM
 from end2endslam.dataloader.nyu import NYU
 from gradslam.slam.pointfusion import PointFusion
 from gradslam.structures.pointclouds import Pointclouds
-from end2endslam.pointfusion_scsfm_utils import compute_scaling_coef, slam_step
+from end2endslam.pointfusion_scsfm_utils import compute_scaling_coef, slam_step, compute_relative_pose_magnitudes
 
 from end2endslam.scsfmwrapper import SCSfmWrapper
 from losses.unified_loss import pred_loss_unified
@@ -419,7 +419,13 @@ if __name__ == "__main__":
 
                 # compute relative gt and slam poses between reference frame and pose
                 
-                input_dict["gt_rel_poses"] = torch.matmul(torch.inverse(input_dict["gt_poses_ref"]), input_dict["gt_poses"]).unsqueeze(1) 
+                input_dict["gt_rel_poses"] = torch.matmul(torch.inverse(input_dict["gt_poses_ref"]), input_dict["gt_poses"]).unsqueeze(1)
+
+                # Log difference in poses for analysis (TODO)
+                mag_transl, mag_rot = compute_relative_pose_magnitudes(input_dict["gt_rel_poses"].squeeze(1).detach().cpu().numpy())
+
+
+
                 if args.projection_mode == "previous":
                     input_dict["slam_rel_poses"] = relative_poses
                 elif args.projection_mode == "first":
@@ -471,6 +477,10 @@ if __name__ == "__main__":
                 val_dict["val_a1"] = torch.tensor(validation_errors[3])
                 val_dict["val_a2"] = torch.tensor(validation_errors[4])
                 val_dict["val_a3"] = torch.tensor(validation_errors[5])
+
+                # log pose difference
+                val_dict["mag_gt_transl"] = mag_transl
+                val_dict["mag_gt_rot"] = mag_rot
 
                 # Validation in eval mode
                 if EVAL_VALIDATION:
