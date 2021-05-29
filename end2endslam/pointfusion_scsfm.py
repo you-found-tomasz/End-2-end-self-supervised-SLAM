@@ -409,7 +409,7 @@ if __name__ == "__main__":
                 input_dict["gt_rel_poses"] = torch.matmul(torch.inverse(input_dict["gt_poses_ref"]), input_dict["gt_poses"]).unsqueeze(1)
 
                 # Log difference in poses for analysis (TODO)
-                mag_transl, mag_rot = compute_relative_pose_magnitudes(input_dict["gt_rel_poses"].squeeze().detach().cpu().numpy())
+                mag_transl, mag_rot = compute_relative_pose_magnitudes(input_dict["gt_rel_poses"].squeeze(1).detach().cpu().numpy())
 
 
 
