@@ -2,7 +2,7 @@
 path="/cluster/home/javedh/tum2"
 debug_path="../../debug_folder/stride0"
 stride=0
-batch=1
+batch=2
 seq_dilation=100
 freeze="y"
 scale=1
