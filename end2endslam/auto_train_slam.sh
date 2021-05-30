@@ -1,5 +1,5 @@
 # path="/media/hamza/DATA/Data/tum"
-path="/cluster/project/infk/courses/3d_vision_21/TUM_original"
+path="/cluster/project/infk/courses/3d_vision_21/group_25/TUM_original"
 debug_path="/cluster/project/infk/courses/3d_vision_21/group_25/debug_plozza/slam"
 stride=101
 batch=20
@@ -7,7 +7,7 @@ max_batches=1
 seq_dilation=100
 freeze="n"
 scale=1
-sequence= "rgbd_dataset_freiburg2_pioneer_slam" #"rgbd_dataset_freiburg2_xyz"
+sequence= "rgbd_dataset_freiburg2_xyz"
 odometry="gradicp"
 train_odometry="slam"
 lr="5e-06"
