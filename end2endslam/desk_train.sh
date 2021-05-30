@@ -1,0 +1,9 @@
+path="/cluster/project/infk/courses/3d_vision_21/group_25/TUM_original"
+debug_path="/cluster/project/infk/courses/3d_vision_21/group_25/debug_plozza/desk"
+sequence="rgbd_dataset_freiburg1_desk"
+
+bsub -R "rusage[mem=8096, ngpus_excl_p=1]" "python pointfusion_scsfm.py --dataset tum --dataset_path ${path} --odometry icp --train_odometry gt --sequences ${sequence} --seq_length 10 --batch_size 2 --debug_path ${debug_path} --model_name desks_001_previous_scale1_dil6_gt --loss_photo_factor 1 --loss_geom_factor 0.5 --loss_smooth_factor 0.1 --loss_cons_factor 0 --loss_gt_factor 0 --log_freq 50 --max_scale 1 --seq_dilation 6 --max_num_batches 1 --seq_start 353 --seq_end 495 --num_epochs 301 --projection_mode previous"
+
+bsub -R "rusage[mem=8096, ngpus_excl_p=1]" "python pointfusion_scsfm.py --dataset tum --dataset_path ${path} --odometry gradicp --train_odometry slam --sequences ${sequence} --seq_length 2 --batch_size 20 --debug_path ${debug_path} --model_name desks_002_previous_scale1_dil6_slam --loss_photo_factor 1 --loss_geom_factor 0.5 --loss_smooth_factor 0.1 --loss_cons_factor 0 --loss_gt_factor 0 --log_freq 50 --max_scale 1 --seq_stride 7 --seq_dilation 6 --max_num_batches 1 --seq_start 353 --seq_end 495 --num_epochs 301 --projection_mode previous"
+
+bsub -R "rusage[mem=8096, ngpus_excl_p=1]" "python pointfusion_scsfm.py --dataset tum --dataset_path ${path} --odometry gradicp --train_odometry slam --sequences ${sequence} --seq_length 2 --batch_size 20 --debug_path ${debug_path} --model_name desks_002_previous_scale1_dil6_slam_lr5 --loss_photo_factor 1 --loss_geom_factor 0.5 --loss_smooth_factor 0.1 --loss_cons_factor 0 --loss_gt_factor 0 --log_freq 50 --max_scale 1 --seq_stride 7 --seq_dilation 6 --max_num_batches 1 --seq_start 353 --seq_end 495 --num_epochs 301 --projection_mode previous --learning_rate 1e05"
