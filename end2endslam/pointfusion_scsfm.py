@@ -460,9 +460,10 @@ if __name__ == "__main__":
 
                 # choose between using gt poses or slam poses for reprojection
                 if args.train_odometry == "slam":
-                    input_dict["pose"] = input_dict["slam_rel_poses"] #.detach()
                     if args.gradslam == "n":
                         input_dict["pose"] = input_dict["slam_rel_poses"].detach()
+                    else:
+                        input_dict["pose"] = input_dict["slam_rel_poses"] #.detach()
                 elif args.train_odometry == "gt":
                     #take relative gt pose between 
                     input_dict["pose"] = torch.matmul(torch.inverse(input_dict["gt_poses_ref"]), input_dict["gt_poses"]).unsqueeze(1)
