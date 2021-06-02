@@ -423,8 +423,8 @@ if __name__ == "__main__":
                 input_dict["pred_depths_ref"] = depth_net(input_dict["rgb_ref"])
                 input_dict["pred_depths"] = depth_predictions #depth_net(input_dict["rgb"])
 
-                #input_dict["pred_depths_ref"][0] = input_dict["pred_depths_ref"][0].detach()
-                #input_dict["pred_depths"][0] = input_dict["pred_depths"][0].detach()
+                input_dict["pred_depths_ref"][0] = input_dict["pred_depths_ref"][0].detach()
+                input_dict["pred_depths"][0] = input_dict["pred_depths"][0].detach()
 
                 #TODO: use it to test with gt depth
                 if USE_GT_DEPTH:
