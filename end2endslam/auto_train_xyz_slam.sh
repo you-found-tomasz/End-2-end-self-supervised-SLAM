@@ -12,6 +12,7 @@ odometry="gradicp"
 train_odometry="slam"
 lr="5e-06"
 epochs=301
+gradslam='y'
 
 bsub -R "rusage[mem=8096, ngpus_excl_p=1]" python3 pointfusion_scsfm.py --odometry ${odometry} --train_odometry ${train_odometry} --dataset tum --dataset_path $path --sequences ${sequence} --seq_length 2 --batch_size ${batch} --debug_path ${debug_path} --model_name ${sequence}_nograd_dil100_geom0.5_g --loss_photo_factor 1 --loss_geom_factor 0.5 --loss_smooth_factor 0.1 --loss_cons_factor 0 --loss_gt_factor 0 --log_freq 50 --max_scale ${scale} --seq_dilation 100 --max_num_batches ${max_batches} --seq_start 1 --seq_end 2002 --num_epochs ${epochs} --projection_mode previous --seq_stride 101 --learning_rate ${lr} --freeze ${freeze} --gradslam ${gradslam}
 bsub -R "rusage[mem=8096, ngpus_excl_p=1]" python3 pointfusion_scsfm.py --odometry ${odometry} --train_odometry ${train_odometry} --dataset tum --dataset_path $path --sequences ${sequence} --seq_length 2 --batch_size ${batch} --debug_path ${debug_path} --model_name ${sequence}_nograd_dil100_geom0.4_g --loss_photo_factor 1 --loss_geom_factor 0.4 --loss_smooth_factor 0.1 --loss_cons_factor 0 --loss_gt_factor 0 --log_freq 50 --max_scale ${scale} --seq_dilation 100 --max_num_batches ${max_batches} --seq_start 1 --seq_end 2002 --num_epochs ${epochs} --projection_mode previous --seq_stride 101 --learning_rate ${lr} --freeze ${freeze} --gradslam ${gradslam}
