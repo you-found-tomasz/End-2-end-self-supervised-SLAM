@@ -233,10 +233,12 @@ parser.add_argument(
     "--gradslam",
     type=str,
     default="y",
-    choices=["y", "n"],
-    help="Let gradients flow trough slam or not"
-    
+    choices=["y", "n","force"],
+    help="Let gradients flow trough slam or not. \n"
+        "Debug features [force]: forces gradients to only flow trought gradslam\n"
+        " and not directly from the loss to the depth network"
 )
+
 
 args = parser.parse_args()
 
@@ -423,9 +425,6 @@ if __name__ == "__main__":
                 input_dict["pred_depths_ref"] = depth_net(input_dict["rgb_ref"])
                 input_dict["pred_depths"] = depth_predictions #depth_net(input_dict["rgb"])
 
-                input_dict["pred_depths_ref"][0] = input_dict["pred_depths_ref"][0].detach()
-                input_dict["pred_depths"][0] = input_dict["pred_depths"][0].detach()
-
                 #TODO: use it to test with gt depth
                 if USE_GT_DEPTH:
                     print("WARNING: USING GT DEPTH")
@@ -479,6 +478,13 @@ if __name__ == "__main__":
                 slam_grad = args.train_odometry == "slam" or args.loss_pose_rot_factor>0 or args.loss_pose_trans_factor #whether gradients are flowing trough slam
                 if pred_index == 0 or (slam_grad and pred_index<args.seq_length-1):
                     continue
+                
+                if args.gradslam == "force": 
+                    # detach predicted depths before passing them to the loss function
+                    # thus the only way the gradients flow to the depth net is trough gradslam poses
+                    for i in range(len(input_dict["pred_depths_ref"])):
+                        input_dict["pred_depths_ref"][i] = input_dict["pred_depths_ref"][i].detach()
+                        input_dict["pred_depths"][i] = input_dict["pred_depths"][i].detach()
 
                 # compute loss, backprop, and optimize (depth consistency loss is computed every frame of sequence)
                 loss_dict = pred_loss_unified(args, input_dict, slam, pointclouds, live_frame)
