@@ -2,19 +2,30 @@
 path="/cluster/project/infk/courses/3d_vision_21/group_25/TUM_original"
 debug_path="/cluster/project/infk/courses/3d_vision_21/group_25/debug_plozza/xyz_slam"
 stride=101
-batch=20
-max_batches=1
+batch=2
+max_batches=10
 seq_dilation=100
 freeze="n"
 scale=1
 sequence="rgbd_dataset_freiburg2_xyz"
 odometry="gradicp"
 train_odometry="slam"
-lr="1e-05"
+lr="5e-05"
 epochs=301
-gradslam='force'
+gradslam='y'
 
-bsub -R "rusage[mem=8096, ngpus_excl_p=1]" python3 pointfusion_scsfm.py --odometry ${odometry} --train_odometry ${train_odometry} --dataset tum --dataset_path $path --sequences ${sequence} --seq_length 2 --batch_size ${batch} --debug_path ${debug_path} --model_name ${sequence}_dil100_force_gradslam --loss_photo_factor 1 --loss_geom_factor 0.5 --loss_smooth_factor 0.1 --loss_cons_factor 0 --loss_gt_factor 0 --log_freq 50 --max_scale ${scale} --seq_dilation 100 --max_num_batches ${max_batches} --seq_start 1 --seq_end 2002 --num_epochs ${epochs} --projection_mode previous --seq_stride 101 --learning_rate ${lr} --freeze ${freeze} --gradslam ${gradslam}
+#bsub -R "rusage[mem=8096, ngpus_excl_p=1]" python3 pointfusion_scsfm.py --odometry ${odometry} --train_odometry ${train_odometry} --dataset tum --dataset_path $path --sequences ${sequence} --seq_length 2 --batch_size ${batch} --debug_path ${debug_path} --model_name ${sequence}_dil100_force_gradslam --loss_photo_factor 1 --loss_geom_factor 0.5 --loss_smooth_factor 0.1 --loss_cons_factor 0 --loss_gt_factor 0 --log_freq 50 --max_scale ${scale} --seq_dilation 100 --max_num_batches ${max_batches} --seq_start 1 --seq_end 2002 --num_epochs ${epochs} --projection_mode previous --seq_stride 101 --learning_rate ${lr} --freeze ${freeze} --gradslam ${gradslam}
+
+bsub -R "rusage[mem=8096, ngpus_excl_p=1]" python3 pointfusion_scsfm.py --odometry ${odometry} --train_odometry ${train_odometry} --dataset tum --dataset_path $path --sequences ${sequence} --seq_length 2 --batch_size ${batch} --debug_path ${debug_path} --model_name ${sequence}_dil100_big_lr --loss_photo_factor 1 --loss_geom_factor 0.5 --loss_smooth_factor 0.1 --loss_cons_factor 0 --loss_gt_factor 0 --log_freq 50 --max_scale ${scale} --seq_dilation 100 --max_num_batches ${max_batches} --seq_start 1 --seq_end 2002 --num_epochs ${epochs} --projection_mode previous --seq_stride 101 --learning_rate ${lr} --freeze ${freeze} --gradslam ${gradslam}
+
+
+stride=43
+batch=2
+max_batches=25
+seq_dilation=100
+lr="1e-05"
+bsub -R "rusage[mem=8096, ngpus_excl_p=1]" python3 pointfusion_scsfm.py --odometry ${odometry} --train_odometry ${train_odometry} --dataset tum --dataset_path $path --sequences ${sequence} --seq_length 2 --batch_size ${batch} --debug_path ${debug_path} --model_name ${sequence}_dil100_stride43 --loss_photo_factor 1 --loss_geom_factor 0.5 --loss_smooth_factor 0.1 --loss_cons_factor 0 --loss_gt_factor 0 --log_freq 50 --max_scale ${scale} --seq_dilation 100 --max_num_batches ${max_batches} --seq_start 1 --seq_end 2002 --num_epochs ${epochs} --projection_mode previous --seq_stride 101 --learning_rate ${lr} --freeze ${freeze} --gradslam ${gradslam}
+
 
 
 #bsub -R "rusage[mem=8096, ngpus_excl_p=1]" python3 pointfusion_scsfm.py --odometry ${odometry} --train_odometry ${train_odometry} --dataset tum --dataset_path $path --sequences ${sequence} --seq_length 2 --batch_size ${batch} --debug_path ${debug_path} --model_name ${sequence}_dil100_geom0.5_g --loss_photo_factor 1 --loss_geom_factor 0.5 --loss_smooth_factor 0.1 --loss_cons_factor 0 --loss_gt_factor 0 --log_freq 50 --max_scale ${scale} --seq_dilation 100 --max_num_batches ${max_batches} --seq_start 1 --seq_end 2002 --num_epochs ${epochs} --projection_mode previous --seq_stride 101 --learning_rate ${lr} --freeze ${freeze} --gradslam ${gradslam}
