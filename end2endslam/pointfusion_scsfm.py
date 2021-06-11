@@ -21,7 +21,7 @@ from losses.unified_loss import pred_loss_unified
 from losses.gt_loss import compute_errors #validation
 from losses.pose_loss import pose_loss_unified
 
-from torch.optim import Adam
+from torch.optim import Adam, SGD
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib as mpl
 import matplotlib.cm as cm
@@ -214,6 +214,19 @@ parser.add_argument(
     type=float,
     default=1e-6
 )
+parser.add_argument(
+    "--freeze",
+    type=str,
+    default="n",
+    choices=["y", "n"]
+)
+
+parser.add_argument(
+    "--optimizer",
+    type=str,
+    default="adam",
+    choices=["adam", "sgd"],
+)
 
 args = parser.parse_args()
 
@@ -255,7 +268,21 @@ if __name__ == "__main__":
         pretrained=True,
         pretrained_path=PRETRAINED_DISPNET_PATH,
         resnet_layers = RESNET_LAYERS)
-    optim = Adam(depth_net.parameters(), lr = args.learning_rate)
+
+    if args.freeze == "y":
+        print("Freezing weights from encoder | Decoder in training mode")
+        learnable_params = depth_net.disp_net.decoder.parameters()
+    else:
+        print("Complete Network in training mode")
+        learnable_params = depth_net.parameters()
+
+    # Inizialize optimizer
+    if args.optimizer == "adam":
+        optim = Adam(learnable_params, lr=args.learning_rate)
+    elif args.optimizer == "sgd":
+        optim = SGD(learnable_params, lr=args.learning_rate, momentum=0, nesterov=False)
+
+    #optim = Adam(depth_net.parameters(), lr = args.learning_rate)
 
     # load dataset
     if args.dataset == "tum":
