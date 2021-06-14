@@ -2,58 +2,40 @@ from argparse import ArgumentParser, RawTextHelpFormatter
 
 import torch
 from torch.utils.data import DataLoader
-
 import numpy as np
 import csv
 import os
 import json
-import cv2 as cv
-#import open3d as o3d # TODO: remove
-from gradslam.structures.rgbdimages import RGBDImages
-from end2endslam.dataloader.tum import TUM
-from end2endslam.dataloader.nyu import NYU
-from gradslam.slam.pointfusion import PointFusion
-from gradslam.structures.pointclouds import Pointclouds
-from end2endslam.pointfusion_scsfm_utils import compute_scaling_coef, slam_step, compute_relative_pose_magnitudes
-
-from end2endslam.scsfmwrapper import SCSfmWrapper
-from losses.unified_loss import pred_loss_unified
-from losses.gt_loss import compute_errors #validation
-from losses.pose_loss import pose_loss_unified
-
 from torch.optim import Adam, SGD
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib as mpl
-import matplotlib.cm as cm
-import imageio
 
-"""r Example run commands:
+from gradslam.slam.pointfusion import PointFusion
+from gradslam.structures.pointclouds import Pointclouds
 
-(leave TUM folder structure unchanged):
+from end2endslam.dataloader.tum import TUM
+from end2endslam.dataloader.nyu import NYU
+from end2endslam.pointfusion_scsfm_utils import compute_scaling_coef, slam_step, compute_relative_pose_magnitudes
+from end2endslam.scsfmwrapper import SCSfmWrapper
 
-runfile('/home/matthias/gitExample Args: 
---dataset tum --dataset_path "/home/matthias/git/End-2-end-self-supervised-SLAM/sample_data/dataset_TUM_desk" 
---debug_path "/home/matthias/data/3dv_debug/" --model_name tum_desk_subset_test
---odometry gt --seq_length 10 --batch_size 5 --seq_start 396 --seq_end 488 --seq_stride 12 --seq_dilation 3
---loss_photo_factor 1 --loss_geom_factor 0.5 --loss_smooth_factor 0.1 --loss_cons_factor 0 --loss_gt_factor 0
---log_freq 1 --max_scale 4
+from losses.unified_loss import pred_loss_unified
+from losses.gt_loss import compute_errors
+from losses.pose_loss import pose_loss_unified
 
-"""
-# TODO: Use for Debug
-USE_GT_DEPTH = False #also disables training
+# For debug only:
+USE_GT_DEPTH = False # also disables training
 VISUALIZE_SLAM = False
 EVAL_VALIDATION = False # slowing training down a bit, computes validation loss in eval mode
 
+# Arguments
 parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
 parser.add_argument(
     "--dataset",
     type=str,
     required=True,
-    choices=["tum", "nyu", "nyu-regular"],
+    choices=["tum", "nyu"],
     help="Dataset to use. Supported options:\n"
-    " tum = Iterative Closest Point\n"
-    " nyu = rectified nyu dataset as provided by SfM-Learner"
-    " nyu-regular = NOT SUPPORTET YET: regular nyu dataset",
+    " tum ",
 )
 parser.add_argument(
     "--dataset_path",
@@ -86,8 +68,7 @@ parser.add_argument(
     "--sequences",
     type=str,
     default=None,
-    help="Path to .txt file containing sequences. \n"
-    "Single sequence name, filepath to sequences.txt or None"
+    help="Single sequence name, filepath to sequences.txt or None"
 )
 parser.add_argument(
     "--debug_path",
@@ -154,39 +135,44 @@ parser.add_argument(
     "--log_freq",
     type=int,
     default=10,
-    help="Frequency for logging"
+    help="Frequency for logging (every n epochs)"
 )
 parser.add_argument(
     "--projection_mode",
     type=str,
     default="previous",
     choices=["previous", "first"],
-    help="Pairwise or wrt. first image in sequence"
+    help="Projection mode, pairwise or wrt. first image in sequence"
 )
 parser.add_argument(
     "--loss_photo_factor",
     type=float,
-    default=0.3
+    default=0.3,
+    help="Photometric loss weight"
 )
 parser.add_argument(
     "--loss_geom_factor",
     type=float,
-    default=0.3
+    default=0.3,
+    help="Geometric Consistency loss weight"
 )
 parser.add_argument(
     "--loss_smooth_factor",
     type=float,
-    default=0.0
+    default=0.0,
+    help="Smoothness loss weight"
 )
 parser.add_argument(
     "--loss_cons_factor",
     type=float,
-    default=0.0
+    default=0.0,
+    help="Depth consistency loss weight, ONLY FOR DEBUG!"
 )
 parser.add_argument(
     "--loss_gt_factor",
     type=float,
-    default=1.0
+    default=0.0,
+    help="GT Depth loss weight, ONLY FOR DEBUG!"
 )
 parser.add_argument(
     "--loss_pose_rot_factor",
@@ -196,29 +182,34 @@ parser.add_argument(
 parser.add_argument(
     "--loss_pose_trans_factor",
     type=float,
-    default=0.0
+    default=0.0,
+    help="Trans Pose loss weight, ONLY FOR DEBUG!"
 )
 
 parser.add_argument(
     "--seed",
     type=int,
-    default=123
+    default=123,
+    help="Rot Pose loss weight, ONLY FOR DEBUG!"
 )
 parser.add_argument(
     "--max_scale",
     type=int,
-    default=1
+    default=1,
+    help="Maximum number of scales for multi-scale reprojection"
 )
 parser.add_argument(
     "--learning_rate",
     type=float,
-    default=1e-6
+    default=1e-6,
+    help="Learning Rate"
 )
 parser.add_argument(
     "--freeze",
     type=str,
     default="n",
-    choices=["y", "n"]
+    choices=["y", "n"],
+    help="Freezing encoder, yes or no"
 )
 
 parser.add_argument(
@@ -226,6 +217,7 @@ parser.add_argument(
     type=str,
     default="adam",
     choices=["adam", "sgd"],
+    help="Optimizer"
 )
 
 args = parser.parse_args()
@@ -241,21 +233,18 @@ ORIG_HEIGHT = 480
 ORIG_WIDTH = 640
 
 #image size used for depth prediction
-DEPTH_PRED_HEIGHT = 256 #256 #256
-DEPTH_PRED_WIDTH = 320 #320 #320
+DEPTH_PRED_HEIGHT = 256
+DEPTH_PRED_WIDTH = 320
 
 #image size used for SLAM
-SLAM_HEIGHT = 64 #64 #64#128128
-SLAM_WIDTH = 80 #80 #80#160
+SLAM_HEIGHT = 64
+SLAM_WIDTH = 80
 
 #DEPTH PREDICTION MODEL PARAMETERS
-#TODO: implement with args
 CURR_DIR = os.path.dirname(os.path.realpath(__file__))
 MODEL_FILE = "models/r18_rectified_nyu/dispnet_model_best.pth.tar"
 PRETRAINED_DISPNET_PATH = os.path.join(CURR_DIR, MODEL_FILE)
 RESNET_LAYERS = 18
-
-
 
 
 if __name__ == "__main__":
@@ -282,8 +271,6 @@ if __name__ == "__main__":
     elif args.optimizer == "sgd":
         optim = SGD(learnable_params, lr=args.learning_rate, momentum=0, nesterov=False)
 
-    #optim = Adam(depth_net.parameters(), lr = args.learning_rate)
-
     # load dataset
     if args.dataset == "tum":
         #need to have images in 320x256 size as input to sc-sfml net. Thus first we rescale by 1.875, then crop horizontally
@@ -295,17 +282,15 @@ if __name__ == "__main__":
             sequences = (args.sequences,)
         else:
             sequences = None
-        height = DEPTH_PRED_HEIGHT#256 #480/2
-        width = int(np.ceil(ORIG_WIDTH*(DEPTH_PRED_HEIGHT/ORIG_HEIGHT))) #342 #ceil(640/2)
-        cropped_width = DEPTH_PRED_WIDTH #320 #crop hotizontally (equal margin at both sides)
+        height = DEPTH_PRED_HEIGHT
+        width = int(np.ceil(ORIG_WIDTH*(DEPTH_PRED_HEIGHT/ORIG_HEIGHT)))
+        cropped_width = DEPTH_PRED_WIDTH #crop hotizontally (equal margin at both sides)
         dataset = TUM(args.dataset_path, seqlen=args.seq_length, height=height, width=width, cropped_width=cropped_width, sequences=sequences,
                       dilation=args.seq_dilation,stride = args.seq_stride,start = args.seq_start, end = args.seq_end)
+
     elif args.dataset == "nyu":
         # right now only working with rectified pictures as provided by SfM-github
         dataset = NYU(args.dataset_path, version="rectified", seqlen=args.seq_length, height=DEPTH_PRED_HEIGHT, width=DEPTH_PRED_WIDTH, sequences=None)
-    elif args.dataset == "nyu-regular":
-        # NOT SUPPORTED YET!!!
-        dataset = NYU(args.dataset_path, version="regular", seqlen=args.seq_length, height=DEPTH_PRED_HEIGHT, width=DEPTH_PRED_WIDTH, sequences=None)
 
     # get data
     loader = DataLoader(dataset=dataset, batch_size=args.batch_size, shuffle=False )
@@ -314,6 +299,7 @@ if __name__ == "__main__":
     model_path = os.path.join(args.debug_path, args.model_name)
     if not os.path.exists(model_path):
         os.makedirs(model_path)
+
     # log args
     args_path = os.path.join(model_path, "args.txt")
     with open(args_path, 'w') as file:
@@ -332,8 +318,6 @@ if __name__ == "__main__":
     current_iter = 0
 
     for e_idx in range(epochs):
-        # TODO: remove gt depth dependency
-        #for batch_idx, (colors, depths, intrinsics, poses, *_) in enumerate(loader):
         for batch_idx, (colors, depths, intrinsics, *rest) in enumerate(loader):
             # Stop training after maximum number of batches
             if batch_idx >= args.max_num_batches:
@@ -344,13 +328,11 @@ if __name__ == "__main__":
             depths = depths.to(device)
             intrinsics = intrinsics.to(device)
 
-            # TODO: make NYU data loader return dummy gt poses
             if args.dataset == 'tum':
                 gt_poses = rest[0].to(device)
             else:
                 gt_poses = torch.eye(4, device=device).view(1, 4, 4).repeat(args.batch_size, args.seq_length, 1, 1)
 
-            # Hard coded
             batch_loss = {}
             batch_val = {}
             pred_depths = []
@@ -372,7 +354,6 @@ if __name__ == "__main__":
                 depth_net.zero_grad()
 
                 # Logging?
-                # if batch_idx % args.log_freq == 0 and pred_index == args.seq_length - 1 and not args.debug_path is None:
                 if e_idx % args.log_freq == 0 and batch_idx == 0 and pred_index == args.seq_length - 1 and not args.debug_path is None:
                     log = True
                 else:
@@ -406,12 +387,11 @@ if __name__ == "__main__":
                     depth_net.scale_coeff = scale_coeff
 
                 # predict depth
-                # TODO: seems inefficient, could also store previous depth prediction
                 depth_predictions = depth_net(input_dict["rgb"])
                 input_dict["pred_depths_ref"] = depth_net(input_dict["rgb_ref"])
-                input_dict["pred_depths"] = depth_predictions #depth_net(input_dict["rgb"])
+                input_dict["pred_depths"] = depth_predictions
 
-                #TODO: use it to test with gt depth
+                #use it to test with gt depth
                 if USE_GT_DEPTH:
                     print("WARNING: USING GT DEPTH")
                     input_dict["pred_depths_ref"] = list()
@@ -432,13 +412,10 @@ if __name__ == "__main__":
                 slam, pointclouds, live_frame, relative_poses = slam_step(input_dict, slam, pointclouds, live_frame, device, args)
 
                 # compute relative gt and slam poses between reference frame and pose
-                
                 input_dict["gt_rel_poses"] = torch.matmul(torch.inverse(input_dict["gt_poses_ref"]), input_dict["gt_poses"]).unsqueeze(1)
 
-                # Log difference in poses for analysis (TODO)
+                # Log difference in poses for analysis
                 mag_transl, mag_rot = compute_relative_pose_magnitudes(input_dict["gt_rel_poses"].squeeze(1).detach().cpu().numpy())
-
-
 
                 if args.projection_mode == "previous":
                     input_dict["slam_rel_poses"] = relative_poses
@@ -449,11 +426,12 @@ if __name__ == "__main__":
                 if args.train_odometry == "slam":
                     input_dict["pose"] = input_dict["slam_rel_poses"].detach()
                 elif args.train_odometry == "gt":
-                    #take relative gt pose between 
+                    #take relative gt pose
                     input_dict["pose"] = torch.matmul(torch.inverse(input_dict["gt_poses_ref"]), input_dict["gt_poses"]).unsqueeze(1)
-                else: raise ValueError("invalid --train_odometry argument")
+                else:
+                    raise ValueError("invalid --train_odometry argument")
 
-                # TODO: use it to visualize SLAM
+                # use it to visualize SLAM
                 if VISUALIZE_SLAM:
                     # SLAM Vis
                     # o3d.visualization.draw_geometries([pointclouds.open3d(0)])
@@ -467,13 +445,11 @@ if __name__ == "__main__":
                 loss_dict = pred_loss_unified(args, input_dict, slam, pointclouds, live_frame)
                 loss = loss_dict["com"]
                 if not USE_GT_DEPTH:
-                    #loss.backward()
-                    #torch.autograd.set_detect_anomaly(True)
-                    loss.backward() #retain_graph=True)
+                    loss.backward()
                     optim.step()
                 print("Epoch: {}, Batch_idx: {}.{} / Loss : {:.4f}".format(e_idx, batch_idx, pred_index, loss))
 
-                # Validation in train mode(TODO)
+                # Validation in train mode
                 # compute various errors by comparing gt to the biggest scale prediction
                 # error_names = ['abs_diff', 'abs_rel', 'sq_rel', 'a1', 'a2', 'a3']
                 gt = input_dict["depth"][:,0,:,:]
@@ -481,7 +457,6 @@ if __name__ == "__main__":
                 validation_errors = compute_errors(pred, gt, args.dataset)
                 print("Validation errors:", validation_errors)
                 # for tensorboard
-                #for backward compatibility...
                 loss_dict["val_abs_diff"] = torch.tensor(validation_errors[0])
                 loss_dict["val_abs_rel"] = torch.tensor(validation_errors[1])
                 val_dict =  {}
@@ -496,29 +471,8 @@ if __name__ == "__main__":
                 val_dict["mag_gt_transl"] = mag_transl
                 val_dict["mag_gt_rot"] = mag_rot
 
-                # Validation in eval mode
-                if EVAL_VALIDATION:
-                    depth_net.disp_net.eval()
-                    input_dict["pred_depths_eval"] = depth_net(input_dict["rgb"])
-                    gt_eval = input_dict["depth"][:,0,:,:]
-                    pred_eval = input_dict["pred_depths_eval"][0][:,0,:,:]
-                    validation_errors_eval = compute_errors(pred_eval, gt_eval, args.dataset)
-                    print("Validation errors eval:", validation_errors_eval)
-                    # for tensorboard
-                    loss_dict["val_abs_diff_eval"] = torch.tensor(validation_errors_eval[0])
-                    loss_dict["val_abs_rel_eval"] = torch.tensor(validation_errors_eval[1])
 
-                    val_dict["val_abs_diff_eval"] = torch.tensor(validation_errors_eval[0])
-                    val_dict["val_abs_rel_eval"] = torch.tensor(validation_errors_eval[1])
-                    val_dict["val_sq_rel_eval"] = torch.tensor(validation_errors_eval[2])
-                    val_dict["val_a1_eval"] = torch.tensor(validation_errors_eval[3])
-                    val_dict["val_a2_eval"] = torch.tensor(validation_errors_eval[4])
-                    val_dict["val_a3_eval"] = torch.tensor(validation_errors_eval[5])
-                    # set back to train mode
-                    depth_net.disp_net.train()
-
-
-                # Log
+                # Logging
                 if log:
                     print("Logging depths images to {}".format(model_path))
                     # Color Vis
@@ -531,10 +485,6 @@ if __name__ == "__main__":
                     mpl.pyplot.imsave("{}/{}_{}_pred.jpg".format(model_path, e_idx, batch_idx),
                                np.vstack(input_dict["pred_depths"][0].detach().squeeze().cpu().numpy()),
                                       vmin=vmin_vis, vmax=vmax_vis)
-                    if EVAL_VALIDATION:
-                        mpl.pyplot.imsave("{}/{}_{}_pred_eval.jpg".format(model_path, e_idx, batch_idx),
-                                          np.vstack(input_dict["pred_depths_eval"][0].detach().squeeze().cpu().numpy()),
-                                          vmin=vmin_vis, vmax=vmax_vis)
                     model_save_path = os.path.join(model_path, "model_epoch_{}".format(e_idx))
                     print("Saving model to {}".format(model_save_path))
                     depth_net.save_model(model_save_path, e_idx, loss_dict)
@@ -564,8 +514,6 @@ if __name__ == "__main__":
                 writer.add_scalar("Batchwise_validation/_{}".format(val_type), batch_val[val_type], counter["batch"])
 
             # Log training progress
-            
-            #add validation scores
             batch_loss = {**batch_loss,**batch_val}
 
             batch_loss["run"] = args.model_name
@@ -574,7 +522,6 @@ if __name__ == "__main__":
             batch_loss["iteration"] = current_iter
 
             log_summary.append(batch_loss)
-            #log_summary[-1] = {**log_summary[-1],**batch_val}
 
             counter["batch"] +=1
             pred_depths = torch.cat(pred_depths, dim= 1)
