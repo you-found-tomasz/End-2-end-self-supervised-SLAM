@@ -22,10 +22,6 @@ def pred_loss_depth_consistency(input_dict, slam, pointclouds, live_frame, DEBUG
         gt_depths = torch.nn.functional.interpolate(input=gt_depths, size=(120, 160), mode="nearest")
         gt_depths_u = torch.unsqueeze(gt_depths, 1).permute(0, 1, 3, 4, 2)
 
-    # Downsample (since depth prediction does not work in (120,160))
-    # colors = torch.nn.functional.interpolate(input=colors, size=(120, 160), mode="bicubic")
-    # pred_depths = torch.nn.functional.interpolate(input=pred_depths, size=(120, 160), mode="nearest")
-
     # imporant, the loss is compute in slam resolution (downscaled)
 
     # Get depth map from SLAM # TODO: can try again with find_correspondences to incorporate uncertainty?
@@ -33,34 +29,6 @@ def pred_loss_depth_consistency(input_dict, slam, pointclouds, live_frame, DEBUG
 
     # Compute Loss
     error = get_depth_error(pred_depths_slam, proj_depths[:, :, :, :, 0].detach())
-
-    # Visualizations: Change path
-    # if DEBUG_PATH:
-    #     # Projected Color Vis
-    #     vis_proj_color = proj_colors[0, 0, :, :, :].detach().cpu().numpy()
-    #     imageio.imwrite(os.path.join(DEBUG_PATH, "debug_color_proj.png"), vis_proj_color)
-    #     # Projected Depth Vis
-    #     vis_proj_depth = proj_depths[0, 0, :, :, :].detach().cpu().numpy()
-    #     vmax = np.percentile(vis_proj_depth, 95)
-    #     vmin = vis_proj_depth.min()
-    #     normalizer = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
-    #     mapper = cm.ScalarMappable(norm=normalizer, cmap='magma')
-    #     proj_depth_np = (mapper.to_rgba(vis_proj_depth[:, :, 0])[:, :, :3] * 255).astype(np.uint8)
-    #     imageio.imwrite(os.path.join(DEBUG_PATH, "debug_depth_proj.png"), proj_depth_np)
-    #     # Color vis
-    #     vis_color = live_frame.rgb_image[0, 0, :, :, :].detach().cpu().numpy()
-    #     imageio.imwrite(os.path.join(DEBUG_PATH, "debug_color.png"), vis_color)
-    #     # Depth Vis
-    #     vis_pred_depth = live_frame.depth_image[0, 0, :, :, :].detach().cpu().numpy()
-    #     vmax = np.percentile(vis_pred_depth, 95)
-    #     vmin = vis_pred_depth.min()
-    #     normalizer = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
-    #     mapper = cm.ScalarMappable(norm=normalizer, cmap='magma')
-    #     pred_depth_np = (mapper.to_rgba(vis_pred_depth[:, :, 0])[:, :, :3] * 255).astype(np.uint8)
-    #     imageio.imwrite(os.path.join(DEBUG_PATH, "debug_depth_proj.png"), pred_depth_np)
-    #     # SLAM Vis
-    #     import open3d as o3d
-    #     o3d.visualization.draw_geometries([pointclouds.open3d(0)])
 
     return error["abs"]
 

@@ -40,24 +40,17 @@ class SCSfmWrapper(nn.Module):
         if pretrained:
             weights = torch.load(pretrained_path, map_location=self.device)
             print("-> Loading model from ", pretrained_path)
-            #self.feed_height = loaded_dict_enc['height'] # Todo check if necessary
-            #self.feed_width = loaded_dict_enc['width']
             self.disp_net.load_state_dict(weights['state_dict'])
         
         self.disp_net.to(self.device)
-
-        #self.disp_net.eval() #set in eval mode... this CHANGES the behaviour of the net
-        self.disp_net.train() #set in train mode... this CHANGES the behaviour of the net
+        self.disp_net.train()
 
     def forward(self, images):
-        #images is in format: batch x color_channels x height x width
-
-        #input_images = images.to(self.device) #PERFORMANCE!
-
+        #images are in format: batch x color_channels x height x width
         #apply hardcoded normalization (as done by scsfml)
         #input images have value in range [0,1]
-        input_images = ((images - 0.45)/0.225).to(self.device)
 
+        input_images = ((images - 0.45)/0.225).to(self.device)
         outputs = self.disp_net(input_images)
 
         # Multi scale
@@ -69,11 +62,6 @@ class SCSfmWrapper(nn.Module):
             single_depth = 1 / single_disp * self.scale_coeff
             depth_list.append(single_depth)
 
-        # Old: Single scale
-        #disp = outputs[0] #take biggest scale
-        #depth = 1 / disp  # compute depth from disparity
-        #return depth
-
         return depth_list
 
     def save_model(self, save_path, epoch, loss):
@@ -84,10 +72,7 @@ class SCSfmWrapper(nn.Module):
         }, save_path)
 
 
-    
-
-
 
 if __name__ == '__main__':
-    print("Don't call wrapper directly for now!")
+    print("Don't call wrapper directly!")
 

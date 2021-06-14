@@ -10,9 +10,6 @@ def gt_loss_wrapper(args, input_dict):
     return gt_loss["abs"]
 
 def get_depth_error(predictions, gt):
-    # tensor_0 = torch.cuda.IntTensor(1).fill_(0)
-    # tensor_1 = torch.cuda.IntTensor(1).fill_(1)
-    # mask = torch.where(gt == 0, 0, 1)
     tensor_0 = torch.zeros(1, device=gt.device)
     tensor_1 = torch.ones(1, device=gt.device)
     mask = torch.where(gt == tensor_0, tensor_0, tensor_1)

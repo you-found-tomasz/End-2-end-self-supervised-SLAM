@@ -250,7 +250,7 @@ def inverse_warp2(img, depth, ref_depth, pose, intrinsics, padding_mode='zeros')
     check_sizes(img, 'img', 'B3HW')
     check_sizes(depth, 'depth', 'B1HW')
     check_sizes(ref_depth, 'ref_depth', 'B1HW')
-    # TODO: changed
+
     try:
         check_sizes(pose, 'pose', 'B34')
         b6_poses = False
@@ -264,7 +264,6 @@ def inverse_warp2(img, depth, ref_depth, pose, intrinsics, padding_mode='zeros')
 
     cam_coords = pixel2cam(depth.squeeze(1), intrinsics.inverse())  # [B,3,H,W]
 
-    # TODO: changed this
     if b6_poses:
         pose_mat = pose_vec2mat(pose)  # [B,3,4]
     else:

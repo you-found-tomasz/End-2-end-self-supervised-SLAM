@@ -13,9 +13,7 @@ import numpy as np
 import math
 
 # TODO: Use for Debug
-#PRINT_REPROJECTION_IMAGES_PATH = None
-PRINT_REPROJECTION_IMAGES_PATH =  None #'./reproj_vis' #None
-#PRINT_REPROJECTION_IMAGES_PATH = '/home/matthias/data/reproj_vis'
+PRINT_REPROJECTION_IMAGES_PATH = None #'./reproj_vis' #None
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
@@ -71,19 +69,6 @@ def compute_photo_and_geometry_loss(tgt_img, ref_imgs, intrinsics, tgt_depth, re
     for ref_img, ref_depth, pose, pose_inv in zip(ref_imgs, ref_depths, poses, poses_inv):
         for s in range(num_scales):
 
-            # # downsample img
-            # b, _, h, w = tgt_depth[s].size()
-            # downscale = tgt_img.size(2)/h
-            # if s == 0:
-            #     tgt_img_scaled = tgt_img
-            #     ref_img_scaled = ref_img
-            # else:
-            #     tgt_img_scaled = F.interpolate(tgt_img, (h, w), mode='area')
-            #     ref_img_scaled = F.interpolate(ref_img, (h, w), mode='area')
-            # intrinsic_scaled = torch.cat((intrinsics[:, 0:2]/downscale, intrinsics[:, 2:]), dim=1)
-            # tgt_depth_scaled = tgt_depth[s]
-            # ref_depth_scaled = ref_depth[s]
-
             # upsample depth
             b, _, h, w = tgt_img.size()
             tgt_img_scaled = tgt_img
@@ -127,8 +112,8 @@ def compute_pairwise_loss(tgt_img, ref_img, tgt_depth, ref_depth, pose, intrinsi
     if with_mask == True:
         weight_mask = (1 - diff_depth)
         diff_img = diff_img * weight_mask
-    """
-    # TODO: Logging, Handle this better!"""
+
+    # Logging
     if PRINT_REPROJECTION_IMAGES_PATH and debug:
         # Original Color Vis
         vis_orig_color = ref_img.permute(0, 2, 3, 1).detach().cpu().numpy()
