@@ -3,6 +3,8 @@ Project for ETH 3D vision course 2021.
 <br/>
 Matthias Brucker, Hamza Javed, Davide Plozza, Tomasz Zaluska, Jeremaine Siegenthaler
 
+For the content of this repository, have a look at **Final_Report.pdf**. 
+
 Reuses code from GradSLAM (https://github.com/gradslam/gradslam) and 
 SC-SfMLearner (https://github.com/JiawangBian/SC-SfMLearner-Release).
 
@@ -24,7 +26,7 @@ Main files / directories:
 
 To set up the environment, follow the "Setup" section below. In case the setup does not work, have a look at the requirements_backup.txt file for installed pip packages.
 In order to run the training and reproducing our experiments, have a look at the "Run Experiments" section below.
-Visualization of results are provided in the Jupyter Notebook "visualizations.ipynb" and in the "presentation" directory.
+Visualizations of results are provided in the Jupyter Notebook "visualizations.ipynb" and in the "presentation" directory. 
 
 ## Cluster Access (optional)
 Login to cluster (use your eth login, use your password for mail)
