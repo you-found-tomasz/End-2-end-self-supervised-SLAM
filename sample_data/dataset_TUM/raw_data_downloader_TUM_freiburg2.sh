@@ -1,7 +1,8 @@
 #!/bin/bash
 
-#freiburg1
+#freiburg2
 files=(rgbd_dataset_freiburg2_xyz.tgz
+rgbd_dataset_freiburg2_pioneer_slam2.tgz
 )
 
 

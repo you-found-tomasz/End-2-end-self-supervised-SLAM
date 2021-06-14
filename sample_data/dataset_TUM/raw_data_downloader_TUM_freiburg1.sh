@@ -2,6 +2,7 @@
 
 #freiburg1
 files=(rgbd_dataset_freiburg1_desk.tgz
+rgbd_dataset_freiburg1_rpy.tgz
 )
 
 for i in ${files[@]}; do
