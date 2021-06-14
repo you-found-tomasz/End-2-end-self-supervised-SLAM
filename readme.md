@@ -6,7 +6,6 @@ Matthias Brucker, Hamza Javed, Davide Plozza, Tomasz Zaluska, Jeremaine Siegenth
 Reuses code from
 https://github.com/gradslam/gradslam and https://github.com/JiawangBian/SC-SfMLearner-Release.
 
-# Reproduce experiments
 
 ## Cluster Access (optional)
 Login to cluster (use your eth login, use your password for mail)
@@ -41,7 +40,7 @@ Execute in the main (End-2-end-self-supervised-SLAM) folder
 ```shell
 "pip install -e ." 
 ```
-
+## Download Datasets
 Download TUM sequences:
 bash script for downloading TUM, execute in sample_data/dataset_TUM folder 
 ```shell
