@@ -3,9 +3,28 @@ Project for ETH 3D vision course 2021.
 <br/>
 Matthias Brucker, Hamza Javed, Davide Plozza, Tomasz Zaluska, Jeremaine Siegenthaler
 
-Reuses code from
-https://github.com/gradslam/gradslam and https://github.com/JiawangBian/SC-SfMLearner-Release.
+Reuses code from GradSLAM (https://github.com/gradslam/gradslam) and 
+SC-SfMLearner (https://github.com/JiawangBian/SC-SfMLearner-Release).
 
+## Overview
+Main files / directories: 
+* **end2endslam/pointfusion_scsfm.py**: Main entry point, contains the training routine for adaptation of the depth prediction network with GT and SLAM poses (custom)
+* **end2endslam/pointfusion_scsfm_utils.py**: provides helper function for performing a SLAM step, median scaling and relative pose computation (custom)
+* **end2endslam/scsfmwrapper.py**: wrapper for the SC-SfMLearner depth prediction model (custom)
+* **end2endslam/models/**: contains SC-SfMLearner depth and pose prediction models
+* **end2endslam/dataloader/**: contains dataloaders for NYU-v2 (custom) and TUM (adapted from GradSLAM) datasets 
+* **end2endslam/losses/loss_utils/**: contains weakly modified loss functions from SC-SfMLearner, which are called via functions
+* **end2endslam/losses/photo_and_geometry_loss.py**: wrapper for photometric and geometric consistency losses (custom)
+* **end2ensdslam/losses/smooth_loss.py**: wrapper for smoothness loss
+* **end2endslam/losses/pose_loss.py**: MSE loss for pose evaluation (custom, not optimized during training)
+* **end2endslam/losses/gt_loss.py**: GT depth loss for validation (adapted from SC-SfMLearner, not optimized during training)
+* **end2endslam/losses/unified_loss.py**: combines losses with weights (custom)
+* **perception/SC_SfMLearner_Release/**: copy of the SCSfMLearner repository 
+* **gradslam/**: copy of the GradSLAM repository
+
+To set up the environment, follow the "Setup" section below. In case the setup does not work, have a look at the requirements_backup.txt file for installed pip packages.
+In order to run the training and reproducing our experiments, have a look at the "Run Experiments" section below.
+Visualization of results are provided in the Jupyter Notebook "visualizations.ipynb" and in the "presentation" directory.
 
 ## Cluster Access (optional)
 Login to cluster (use your eth login, use your password for mail)
